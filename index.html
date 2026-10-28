@@ -3,243 +3,127 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>İçimizdeki Tamirci | Link-in-Bio & Yönetim Portalı</title>
+    <title>İçimizdeki Tamirci — Portalı</title>
     <meta
       name="description"
-      content="İçimizdeki Tamirci — Rabia Alga ve Bedia Kahya Kılıç modern Link-in-Bio sayfaları, seminer takvimi ve analitik yönetim paneli."
+      content="İçimizdeki Tamirci — Rabia Alga ve Bedia Kahya Kılıç modern Link-in-Bio sayfaları ve seminer takvimi."
     />
     <link rel="stylesheet" href="css/modern.css" />
     <style>
-      .portal-hero {
-        max-width: 1160px;
-        margin: 0 auto;
-        padding: 3.5rem 1.5rem 4rem;
+      .portal-wrap {
+        width: 100%;
+        max-width: 640px;
+        margin: 2.5rem auto;
+        padding: 0 1.25rem;
       }
-      .portal-header {
+      .portal-card {
+        background: #ffffff;
+        border: 1px solid var(--border-light);
+        border-radius: 28px;
+        padding: 2.25rem 2rem;
+        box-shadow: var(--shadow-card);
         text-align: center;
-        max-width: 720px;
-        margin: 0 auto 2.75rem;
+        margin-bottom: 1.5rem;
       }
-      .portal-badge {
+      .portal-logo {
+        width: 60px;
+        height: 60px;
+        border-radius: 18px;
+        background: var(--primary);
+        color: #ffffff;
         display: inline-flex;
         align-items: center;
-        gap: 0.45rem;
-        padding: 0.35rem 0.9rem;
-        border-radius: var(--radius-pill);
-        background: var(--accent-soft);
-        color: var(--accent);
-        border: 1px solid var(--accent-border);
-        font-size: 0.78rem;
+        justify-content: center;
+        font-family: var(--font-display);
+        font-size: 1.5rem;
         font-weight: 700;
-        margin-bottom: 1rem;
+        margin-bottom: 1.15rem;
+        box-shadow: 0 8px 18px rgba(2, 163, 196, 0.3);
       }
       .portal-title {
         font-family: var(--font-display);
-        font-size: var(--step-4);
-        font-weight: 600;
-        line-height: 1.12;
-        letter-spacing: -0.02em;
-        margin-bottom: 0.75rem;
+        font-size: 1.85rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.5rem;
       }
-      .portal-sub {
+      .portal-desc {
+        font-size: 0.95rem;
         color: var(--text-secondary);
-        font-size: 1.02rem;
-      }
-      .portal-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1.5rem;
         margin-bottom: 2rem;
+        line-height: 1.6;
       }
-      .portal-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 1.85rem;
-        box-shadow: var(--shadow-md);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 1.35rem;
-      }
-      .portal-card-top {
+      .profile-item-btn {
         display: flex;
         align-items: center;
         gap: 1.15rem;
+        padding: 1.15rem 1.35rem;
+        background: var(--bg-subtle);
+        border: 1px solid var(--border-light);
+        border-radius: 20px;
+        margin-bottom: 1rem;
+        transition: all 0.22s ease;
+        text-align: left;
       }
-      .portal-avatar {
-        width: 82px;
-        height: 82px;
-        border-radius: 22px;
+      .profile-item-btn:hover {
+        transform: translateY(-2px);
+        border-color: var(--primary);
+        box-shadow: var(--shadow-hover);
+        background: #ffffff;
+      }
+      .profile-thumb {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
         object-fit: cover;
-        border: 3px solid var(--accent-soft);
+        border: 2px solid var(--primary-soft);
         flex-shrink: 0;
       }
-      .portal-slug {
-        font-family: var(--font-mono);
-        font-size: 0.75rem;
-        color: var(--accent);
-        background: var(--accent-soft);
-        padding: 0.18rem 0.55rem;
-        border-radius: 6px;
-        display: inline-block;
-        margin-bottom: 0.3rem;
+      .profile-item-name {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.2rem;
       }
-      .portal-name {
-        font-family: var(--font-display);
-        font-size: 1.45rem;
-        font-weight: 600;
-        line-height: 1.2;
-      }
-      .portal-role {
-        font-size: 0.86rem;
+      .profile-item-role {
+        font-size: 0.84rem;
         color: var(--text-muted);
-        margin-top: 0.2rem;
-      }
-      .portal-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-      }
-      .portal-sim-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.5rem;
-      }
-      .portal-admin-banner {
-        background: linear-gradient(135deg, #142225 0%, #0B5560 100%);
-        color: #fff;
-        border-radius: var(--radius-lg);
-        padding: 2rem 2.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1.5rem;
-        flex-wrap: wrap;
-        box-shadow: var(--shadow-lg);
-      }
-      @media (max-width: 820px) {
-        .portal-grid {
-          grid-template-columns: 1fr;
-        }
-        .portal-sim-row {
-          grid-template-columns: 1fr;
-        }
       }
     </style>
   </head>
   <body>
-    <header class="it-topbar">
-      <div class="it-topbar-inner">
-        <a href="index.html" class="it-brand">
-          <span class="it-brand-mark">İT</span>
-          <span>İçimizdeki Tamirci</span>
-        </a>
-        <div class="it-topbar-actions">
-          <a href="rabia-alga.html" class="it-pill-link">Rabia Alga</a>
-          <a href="bedia-kahya-kilic.html" class="it-pill-link">Bedia Kahya Kılıç</a>
-          <a href="admin.html" class="it-admin-cta">⚙️ Yönetim & Analitik Paneli</a>
-        </div>
-      </div>
-    </header>
-
-    <main class="portal-hero">
-      <div class="portal-header">
-        <span class="portal-badge">✨ Modern Link-in-Bio & Gerçek Zamanlı Analitik Sistemi</span>
-        <h1 class="portal-title">İçimizdeki Tamirci Dijital Profil & Seminer Merkezi</h1>
-        <p class="portal-sub">
-          Mobil cihazlardan girenlere özel hızlı Link-in-Bio arayüzü, bilgisayardan (PC) girenlere özel geniş masaüstü deneyimi ve kaynak/eğitim tıklama analitiği.
+    <main class="portal-wrap">
+      <div class="portal-card">
+        <div class="portal-logo">İT</div>
+        <h1 class="portal-title">İçimizdeki Tamirci</h1>
+        <p class="portal-desc">
+          Bütünsel dönüşüm ve farkındalık eğitimleri seminer takvimi ve eğitmen profilleri
         </p>
-      </div>
 
-      <div class="portal-grid">
-        <!-- Rabia Alga Kartı -->
-        <article class="portal-card">
-          <div>
-            <div class="portal-card-top">
-              <img src="assets/images/RabiaAlga.jpg" alt="Rabia Alga" class="portal-avatar" />
-              <div>
-                <span class="portal-slug">rabia-alga.php</span>
-                <h2 class="portal-name">Rabia Alga</h2>
-                <p class="portal-role">Yüksek Mimar (UÜ & İTÜ) · ThetaHealing® & Silva Metodu Eğitmeni</p>
-              </div>
-            </div>
+        <a href="rabia-alga.html" class="profile-item-btn">
+          <img src="assets/images/RabiaAlga.jpg" alt="Rabia Alga" class="profile-thumb" />
+          <div style="flex:1;">
+            <div class="profile-item-name">Rabia Alga</div>
+            <div class="profile-item-role">Yüksek Mimar · ThetaHealing® & Silva Metodu Eğitmeni</div>
           </div>
+          <span style="font-size:1.2rem; color:var(--primary);">↗</span>
+        </a>
 
-          <div class="portal-actions">
-            <a href="rabia-alga.html" class="it-training-cta">
-              <span>Rabia Alga Sayfasını Görüntüle</span>
-              <span>↗</span>
-            </a>
-            <div class="portal-sim-row">
-              <a href="rabia-alga.html?ref=instagram" class="it-share-chip">
-                📸 Instagram'dan Gir (Test)
-              </a>
-              <a href="rabia-alga.html?ref=whatsapp" class="it-share-chip">
-                💬 WhatsApp'tan Gir (Test)
-              </a>
-            </div>
-            <a href="admin.html?profile=rabia-alga&tab=trainings" class="it-more-btn" style="justify-content:center; gap:0.5rem;">
-              <span>✏️ Admin Panelinde rabia-alga.php Düzenle</span>
-            </a>
+        <a href="bedia-kahya-kilic.html" class="profile-item-btn">
+          <img src="assets/images/BediaKahyaKilic.jpg" alt="Bedia Kahya Kılıç" class="profile-thumb" />
+          <div style="flex:1;">
+            <div class="profile-item-name">Bedia Kahya Kılıç</div>
+            <div class="profile-item-role">Endüstri Mühendisi (MBA) · ThetaHealing® Eğitmeni</div>
           </div>
-        </article>
+          <span style="font-size:1.2rem; color:var(--primary);">↗</span>
+        </a>
 
-        <!-- Bedia Kahya Kılıç Kartı -->
-        <article class="portal-card">
-          <div>
-            <div class="portal-card-top">
-              <img src="assets/images/BediaKahyaKilic.jpg" alt="Bedia Kahya Kılıç" class="portal-avatar" />
-              <div>
-                <span class="portal-slug">bedia-kahya-kilic.php</span>
-                <h2 class="portal-name">Bedia Kahya Kılıç</h2>
-                <p class="portal-role">Endüstri Mühendisi (MBA) · ThetaHealing® & Sayıların Şifası Eğitmeni</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="portal-actions">
-            <a href="bedia-kahya-kilic.html" class="it-training-cta">
-              <span>Bedia Kahya Kılıç Sayfasını Görüntüle</span>
-              <span>↗</span>
-            </a>
-            <div class="portal-sim-row">
-              <a href="bedia-kahya-kilic.html?ref=instagram" class="it-share-chip">
-                📸 Instagram'dan Gir (Test)
-              </a>
-              <a href="bedia-kahya-kilic.html?ref=whatsapp" class="it-share-chip">
-                💬 WhatsApp'tan Gir (Test)
-              </a>
-            </div>
-            <a href="admin.html?profile=bedia-kahya-kilic&tab=trainings" class="it-more-btn" style="justify-content:center; gap:0.5rem;">
-              <span>✏️ Admin Panelinde bedia-kahya-kilic.php Düzenle</span>
-            </a>
-          </div>
-        </article>
-      </div>
-
-      <!-- Admin & Analitik Özeti -->
-      <section class="portal-admin-banner">
-        <div style="max-width:640px;">
-          <div style="font-size:0.76rem; text-transform:uppercase; letter-spacing:0.08em; color:#9FE2EA; font-weight:700; margin-bottom:0.35rem;">
-            ● Yönetim Paneli & Kaynak Analitiği
-          </div>
-          <h2 style="font-family:var(--font-display); font-size:1.55rem; margin-bottom:0.45rem;">
-            Hangi Eğitime Kaç Kişi Tıkladı & Nereden Geldi?
-          </h2>
-          <p style="font-size:0.9rem; color:#D5ECEF;">
-            Admin panelinden <code>rabia-alga.php</code> veya <code>bedia-kahya-kilic.php</code> sayfasını seçerek seminerleri, biyografiyi ve videoları anında güncelleyebilir; Instagram, WhatsApp ve YouTube'dan gelen ziyaretçilerin hangi eğitimlere tıkladığını canlı takip edebilirsiniz.
-          </p>
-        </div>
-        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-          <a href="admin.html" class="it-training-cta" style="width:auto; background:#fff; color:#142225; padding:0.85rem 1.5rem;">
-            <span>📊 Admin & Analiz Paneline Git</span>
-            <span>→</span>
+        <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border-light);">
+          <a href="admin.html" style="font-size:0.86rem; font-weight:600; color:var(--text-muted); display:inline-flex; align-items:center; gap:0.4rem;">
+            <span>⚙️ Yönetici Girişi</span>
           </a>
         </div>
-      </section>
+      </div>
     </main>
-
-    <script src="js/store.js"></script>
   </body>
 </html>

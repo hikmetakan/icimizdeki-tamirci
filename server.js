@@ -27,40 +27,24 @@ const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   let pathname = decodeURIComponent(parsedUrl.pathname);
 
-  // API Endpoints for CMS & Analytics persistence
-  if (pathname === '/api/cms' || pathname === '/api/analytics') {
-    const file = pathname === '/api/cms' ? 'cms.json' : 'analytics.json';
-    const filePath = path.join(DATA_DIR, file);
-
-    if (req.method === 'POST') {
-      let body = '';
-      req.on('data', (chunk) => (body += chunk));
-      req.on('end', () => {
-        try {
-          fs.writeFileSync(filePath, body, 'utf8');
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true }));
-        } catch (err) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: err.message }));
-        }
-      });
-      return;
-    }
-
-    if (req.method === 'GET') {
-      if (fs.existsSync(filePath)) {
+  // SQLite3 Sync Endpoint
+  if (pathname === '/api/sqlite/sync' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      try {
+        fs.writeFileSync(path.join(DATA_DIR, 'sqlite_sync.json'), body, 'utf8');
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(fs.readFileSync(filePath, 'utf8'));
-      } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false }));
+        res.end(JSON.stringify({ ok: true, engine: 'sqlite3' }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
       }
-      return;
-    }
+    });
+    return;
   }
 
-  // Map .php requests to .html equivalents for local preview
+  // Routing
   if (pathname === '/' || pathname === '/index.php') {
     pathname = '/index.html';
   } else if (pathname === '/rabia-alga.php' || pathname === '/rabia-alga' || pathname === '/rabialga.php') {
@@ -93,5 +77,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`İçimizdeki Tamirci sunucusu çalışıyor: http://localhost:${PORT}`);
+  console.log(`İçimizdeki Tamirci SQLite3 sunucusu çalışıyor: http://localhost:${PORT}`);
 });

@@ -1,7 +1,7 @@
 /**
- * İçimizdeki Tamirci — Yönetim Paneli & Giriş Doğrulama (admin-app.js)
- * Varsayılan Giriş: Kullanıcı Adı: 1, Şifre: 1
- * Panel değiştirme (kullanıcı adı ve şifre güncelleme) özelliği içerir.
+ * İçimizdeki Tamirci — SQLite3 Yönetim Paneli Uygulaması (admin-app.js)
+ * ShenApp mimarisi referanslı SQLite3 Veri Motoru
+ * Varsayılan Giriş: 1 / 1
  */
 
 (function () {
@@ -109,7 +109,7 @@
           <div class="login-hint-box">
             💡 <strong>Varsayılan Bilgiler:</strong><br />
             Kullanıcı Adı: <code>1</code> &nbsp;|&nbsp; Şifre: <code>1</code><br />
-            <span style="font-size:0.72rem; color:#64748b;">(Giriş yaptıktan sonra sol menüden şifrenizi değiştirebilirsiniz)</span>
+            <span style="font-size:0.72rem; color:#64748b;">(Giriş yaptıktan sonra sol menüden kullanıcı adı ve şifrenizi değiştirebilirsiniz)</span>
           </div>
         </div>
       </div>
@@ -135,134 +135,41 @@
   }
 
   // =========================================================================
-  // 2. ANALİTİK VERİ HESAPLAMA
-  // =========================================================================
-  function getAggregatedAnalytics() {
-    const analytics = window.ITStore.getAnalytics();
-    const profilesToInclude =
-      analyticsFilterProfile === 'ALL'
-        ? ['rabia-alga', 'bedia-kahya-kilic']
-        : [analyticsFilterProfile];
-
-    let totalVisits = 0;
-    let uniqueVisitors = 0;
-    let totalClicks = 0;
-    const sources = {
-      instagram: { visits: 0, clicks: 0 },
-      whatsapp: { visits: 0, clicks: 0 },
-      youtube: { visits: 0, clicks: 0 },
-      google: { visits: 0, clicks: 0 },
-      twitter: { visits: 0, clicks: 0 },
-      direct: { visits: 0, clicks: 0 }
-    };
-    const devices = { mobile: 0, desktop: 0 };
-    const trainingsList = [];
-
-    profilesToInclude.forEach((pid) => {
-      const s = analytics.summary[pid];
-      if (!s) return;
-      totalVisits += s.totalVisits || 0;
-      uniqueVisitors += s.uniqueVisitors || 0;
-      totalClicks += s.totalClicks || 0;
-
-      Object.keys(sources).forEach((srcKey) => {
-        if (s.sources && s.sources[srcKey]) {
-          sources[srcKey].visits += s.sources[srcKey].visits || 0;
-          sources[srcKey].clicks += s.sources[srcKey].clicks || 0;
-        }
-      });
-
-      devices.mobile += s.devices?.mobile || 0;
-      devices.desktop += s.devices?.desktop || 0;
-
-      const profObj = window.ITStore.getProfile(pid);
-      Object.entries(s.trainingClicks || {}).forEach(([tid, tStat]) => {
-        trainingsList.push({
-          id: tid,
-          profileId: pid,
-          profileSlug: profObj.phpSlug,
-          profileName: profObj.name,
-          title: tStat.title,
-          clicks: tStat.clicks || 0,
-          bySource: tStat.bySource || {}
-        });
-      });
-    });
-
-    trainingsList.sort((a, b) => b.clicks - a.clicks);
-
-    const recentEvents = (analytics.recentEvents || []).filter((e) =>
-      analyticsFilterProfile === 'ALL' ? true : e.profileId === analyticsFilterProfile
-    );
-
-    return {
-      totalVisits,
-      uniqueVisitors,
-      totalClicks,
-      ctr: totalVisits > 0 ? ((totalClicks / totalVisits) * 100).toFixed(1) : '0.0',
-      sources,
-      devices,
-      trainingsList,
-      recentEvents
-    };
-  }
-
-  // =========================================================================
-  // 3. ANALİTİK PANELİ (Hangi eğitime kaç kişi tıkladı & nereden geldi)
+  // 2. ANALİTİK PANELİ (SQLITE3 MOTORU İLE GERÇEK ZAMANLI SORGULAR)
   // =========================================================================
   function renderAnalyticsSection() {
-    const agg = getAggregatedAnalytics();
+    const agg = window.ITStore.getAnalytics(analyticsFilterProfile);
     const maxTrainingClicks = Math.max(1, ...agg.trainingsList.map((t) => t.clicks));
     const maxSourceVisits = Math.max(1, ...Object.values(agg.sources).map((s) => s.visits));
 
-    const mobilePct =
-      agg.devices.mobile + agg.devices.desktop > 0
-        ? Math.round((agg.devices.mobile / (agg.devices.mobile + agg.devices.desktop)) * 100)
-        : 80;
-    const desktopPct = 100 - mobilePct;
+    const totalDev = agg.devices.mobile + agg.devices.desktop;
+    const mobilePct = totalDev > 0 ? Math.round((agg.devices.mobile / totalDev) * 100) : 0;
+    const desktopPct = totalDev > 0 ? 100 - mobilePct : 0;
 
     return `
-      <!-- Üst Filtre & Hızlı Canlı Test Çubuğu -->
-      <div class="admin-card" style="background:linear-gradient(135deg, #142225 0%, #028ba8 100%); color:#fff; border:none;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
-          <div>
-            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:#a5f3fc; font-weight:700; margin-bottom:0.25rem;">
-              ● Gerçek Zamanlı Trafik & Tıklama Analitiği
-            </div>
-            <h2 style="font-family:'Playfair Display', Georgia, serif; font-size:1.45rem; font-weight:700;">
-              Hangi Eğitime Kaç Kişi Tıkladı & Nereden Geldi?
-            </h2>
-          </div>
-
-          <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-            <button type="button" class="btn-secondary" style="background:${analyticsFilterProfile === 'ALL' ? '#fff' : 'rgba(255,255,255,0.12)'}; color:${analyticsFilterProfile === 'ALL' ? '#142225' : '#fff'}; border:none;" data-analytics-filter="ALL">
-              Tüm Sayfalar (Birleşik)
-            </button>
-            <button type="button" class="btn-secondary" style="background:${analyticsFilterProfile === 'rabia-alga' ? '#fff' : 'rgba(255,255,255,0.12)'}; color:${analyticsFilterProfile === 'rabia-alga' ? '#142225' : '#fff'}; border:none;" data-analytics-filter="rabia-alga">
-              rabia-alga.php
-            </button>
-            <button type="button" class="btn-secondary" style="background:${analyticsFilterProfile === 'bedia-kahya-kilic' ? '#fff' : 'rgba(255,255,255,0.12)'}; color:${analyticsFilterProfile === 'bedia-kahya-kilic' ? '#142225' : '#fff'}; border:none;" data-analytics-filter="bedia-kahya-kilic">
-              bedia-kahya-kilic.php
-            </button>
-          </div>
+      <!-- SQLite3 Motor Bilgilendirmesi -->
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+        <div class="sqlite-engine-badge">
+          💾 Veri Motoru: SQLite3 (ShenApp Standardı · Gerçek Zamanlı DB)
         </div>
 
-        <div style="margin-top:1.15rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
-          <span style="font-size:0.82rem; color:#e0f2fe;">
-            🧪 <strong>Canlı Test:</strong> Aşağıdaki butonlarla Instagram veya WhatsApp'tan eğitim tıklaması simüle edip sayıların anında arttığını görebilirsiniz:
-          </span>
-          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <button type="button" class="btn-secondary" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); font-size:0.78rem; padding:0.42rem 0.8rem;" data-sim-event="ig-rabia">
-              📸 +1 Instagram → rabia-alga.php (Silva Tıkla)
-            </button>
-            <button type="button" class="btn-secondary" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); font-size:0.78rem; padding:0.42rem 0.8rem;" data-sim-event="wp-bedia">
-              💬 +1 WhatsApp → bedia-kahya-kilic.php (Temel DNA Tıkla)
-            </button>
-          </div>
+        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+          <button type="button" class="btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.85rem;" data-analytics-filter="ALL">
+            Tüm Sayfalar (${analyticsFilterProfile === 'ALL' ? '✓' : ''})
+          </button>
+          <button type="button" class="btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.85rem;" data-analytics-filter="rabia-alga">
+            rabia-alga.php (${analyticsFilterProfile === 'rabia-alga' ? '✓' : ''})
+          </button>
+          <button type="button" class="btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.85rem;" data-analytics-filter="bedia-kahya-kilic">
+            bedia-kahya-kilic.php (${analyticsFilterProfile === 'bedia-kahya-kilic' ? '✓' : ''})
+          </button>
+          <button type="button" class="btn-danger-outline" id="btn-reset-analytics">
+            🔄 Test Sayaçlarını Sıfırla
+          </button>
         </div>
       </div>
 
-      <!-- 4 Ana KPI Kartı -->
+      <!-- 3 Ana KPI Kartı (Sıfırdan Başlayan Gerçek Veriler) -->
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">
@@ -271,19 +178,7 @@
           </div>
           <div class="kpi-value">${agg.totalVisits.toLocaleString('tr-TR')}</div>
           <div class="kpi-sub">
-            <span class="kpi-delta">Canlı</span>
-            <span>Linke toplam giriş sayısı</span>
-          </div>
-        </div>
-
-        <div class="kpi-card">
-          <div class="kpi-label">
-            <span>Tekil Ziyaretçi</span>
-            <span>👤</span>
-          </div>
-          <div class="kpi-value">${agg.uniqueVisitors.toLocaleString('tr-TR')}</div>
-          <div class="kpi-sub">
-            <span>Farklı kişi sayısı</span>
+            <span>Gerçek ziyaretçi giriş sayısı</span>
           </div>
         </div>
 
@@ -294,86 +189,91 @@
           </div>
           <div class="kpi-value">${agg.totalClicks.toLocaleString('tr-TR')}</div>
           <div class="kpi-sub">
-            <span class="kpi-delta">Kayıt CTA</span>
-            <span>Seminer butonlarına tıklama</span>
+            <span>Seminer butonlarına tıklanma</span>
           </div>
         </div>
 
         <div class="kpi-card">
           <div class="kpi-label">
-            <span>Eğitime Tıklama Oranı</span>
+            <span>Tıklama Oranı (CTR)</span>
             <span>📈</span>
           </div>
           <div class="kpi-value">%${agg.ctr}</div>
           <div class="kpi-sub">
-            <span>Mobil: %${mobilePct} · PC: %${desktopPct}</span>
+            <span>Eğitim inceleme dönüşümü</span>
           </div>
         </div>
       </div>
 
-      <!-- İki Kolonlu Analitik Detayı -->
+      <!-- İki Kolonlu Detaylı SQLite3 Raporu -->
       <div class="analytics-grid-2">
-        <!-- SOL: Eğitim Bazlı Tıklamalar -->
+        <!-- SOL: Hangi Eğitime Kaç Kişi Tıkladı? -->
         <div class="admin-card" style="margin-bottom:0;">
           <div class="admin-card-header">
             <div>
               <h3 class="admin-card-title">🎓 Hangi Eğitime Kaç Kişi Tıkladı?</h3>
               <p class="admin-card-subtitle">
-                Her bir seminerin aldığı toplam tıklama ve nereden (Instagram, WhatsApp vb.) gelindiği
+                Eğitim butonlarının aldığı tıklama sayıları ve nereden gelindiği (Instagram, WhatsApp vb.)
               </p>
             </div>
           </div>
 
-          <div class="training-stat-list">
-            ${agg.trainingsList
-              .map((t) => {
-                const widthPct = Math.max(6, Math.round((t.clicks / maxTrainingClicks) * 100));
-                const igCount = t.bySource?.instagram || 0;
-                const wpCount = t.bySource?.whatsapp || 0;
-                const ytCount = t.bySource?.youtube || 0;
-                const ggCount = t.bySource?.google || 0;
-                const drCount = t.bySource?.direct || 0;
+          ${
+            agg.trainingsList.length === 0
+              ? `<div style="text-align:center; padding:2rem; color:#64748b;">Henüz kayıtlı bir eğitim tıklaması bulunmuyor.</div>`
+              : `
+            <div class="training-stat-list">
+              ${agg.trainingsList
+                .map((t) => {
+                  const widthPct = t.clicks > 0 ? Math.max(8, Math.round((t.clicks / maxTrainingClicks) * 100)) : 0;
+                  const igCount = t.bySource?.instagram || 0;
+                  const wpCount = t.bySource?.whatsapp || 0;
+                  const ytCount = t.bySource?.youtube || 0;
+                  const ggCount = t.bySource?.google || 0;
+                  const drCount = t.bySource?.direct || 0;
 
-                return `
-                <div class="training-stat-item">
-                  <div class="training-stat-top">
-                    <div>
-                      <div class="training-stat-name">${escapeHtml(t.title)}</div>
-                      <div style="font-size:0.76rem; color:#64748b; margin-top:0.15rem;">
-                        Sayfa: <code>${escapeHtml(t.profileSlug)}</code> (${escapeHtml(t.profileName)})
+                  return `
+                  <div class="training-stat-item">
+                    <div class="training-stat-top">
+                      <div>
+                        <div class="training-stat-name">${escapeHtml(t.title)}</div>
+                        <div style="font-size:0.76rem; color:#64748b; margin-top:0.15rem;">
+                          Sayfa: <code>${escapeHtml(t.profileSlug)}</code> (${escapeHtml(t.profileName)})
+                        </div>
+                      </div>
+                      <div class="training-stat-count">
+                        ${t.clicks} Tıklama
                       </div>
                     </div>
-                    <div class="training-stat-count">
-                      ${t.clicks} Tıklama
+
+                    <div class="stat-bar-track">
+                      <div class="stat-bar-fill" style="width:${widthPct}%;"></div>
+                    </div>
+
+                    <div class="source-mini-pills">
+                      <span class="source-mini-pill">📸 Instagram: <strong>${igCount}</strong></span>
+                      <span class="source-mini-pill">💬 WhatsApp: <strong>${wpCount}</strong></span>
+                      <span class="source-mini-pill">▶️ YouTube: <strong>${ytCount}</strong></span>
+                      <span class="source-mini-pill">🔍 Google: <strong>${ggCount}</strong></span>
+                      <span class="source-mini-pill">🔗 Direkt: <strong>${drCount}</strong></span>
                     </div>
                   </div>
-
-                  <div class="stat-bar-track">
-                    <div class="stat-bar-fill" style="width:${widthPct}%;"></div>
-                  </div>
-
-                  <div class="source-mini-pills">
-                    <span class="source-mini-pill">📸 Instagram: <strong>${igCount}</strong></span>
-                    <span class="source-mini-pill">💬 WhatsApp: <strong>${wpCount}</strong></span>
-                    <span class="source-mini-pill">▶️ YouTube: <strong>${ytCount}</strong></span>
-                    <span class="source-mini-pill">🔍 Google: <strong>${ggCount}</strong></span>
-                    <span class="source-mini-pill">🔗 Direkt: <strong>${drCount}</strong></span>
-                  </div>
-                </div>
-              `;
-              })
-              .join('')}
-          </div>
+                `;
+                })
+                .join('')}
+            </div>
+          `
+          }
         </div>
 
-        <!-- SAĞ: Nereden Geldi (Kaynak Analizi) -->
+        <!-- SAĞ: Ziyaretçiler Nereden Geldi? (Kaynak Dağılımı) -->
         <div style="display:flex; flex-direction:column; gap:1.25rem;">
           <div class="admin-card" style="margin-bottom:0;">
             <div class="admin-card-header">
               <div>
                 <h3 class="admin-card-title">🧭 Ziyaretçiler Nereden Geldi?</h3>
                 <p class="admin-card-subtitle">
-                  Instagram, WhatsApp, YouTube ve diğer kanalların ziyaret ve tıklama dağılımı
+                  Gelen ziyaretçilerin kaynak analizi (Instagram, WhatsApp, YouTube vb.)
                 </p>
               </div>
             </div>
@@ -382,9 +282,8 @@
               ${Object.entries(window.ITStore.SOURCE_META)
                 .map(([key, meta]) => {
                   const sData = agg.sources[key] || { visits: 0, clicks: 0 };
-                  const sharePct =
-                    agg.totalVisits > 0 ? Math.round((sData.visits / agg.totalVisits) * 100) : 0;
-                  const barPct = Math.max(4, Math.round((sData.visits / maxSourceVisits) * 100));
+                  const sharePct = agg.totalVisits > 0 ? Math.round((sData.visits / agg.totalVisits) * 100) : 0;
+                  const barPct = sData.visits > 0 ? Math.max(5, Math.round((sData.visits / maxSourceVisits) * 100)) : 0;
 
                   return `
                   <div class="source-row">
@@ -419,12 +318,12 @@
               <div>
                 <h3 class="admin-card-title">📱 Mobil vs PC Giriş Oranı</h3>
                 <p class="admin-card-subtitle">
-                  Mobil cihazlardan girenler (%${mobilePct}) ve bilgisayardan (PC) girenler (%${desktopPct})
+                  Mobilden (${agg.devices.mobile}) ve bilgisayardan (${agg.devices.desktop}) girenler
                 </p>
               </div>
             </div>
 
-            <div style="display:flex; height:14px; border-radius:999px; overflow:hidden; margin-bottom:0.65rem;">
+            <div style="display:flex; height:14px; border-radius:999px; overflow:hidden; margin-bottom:0.65rem; background:#e2ded5;">
               <div style="width:${mobilePct}%; background:#02a3c4;" title="Mobil %${mobilePct}"></div>
               <div style="width:${desktopPct}%; background:#142225;" title="PC %${desktopPct}"></div>
             </div>
@@ -436,13 +335,13 @@
         </div>
       </div>
 
-      <!-- Canlı Hareket Akışı Tablosu -->
+      <!-- SQLite3 Hareket Akışı -->
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
-            <h3 class="admin-card-title">⚡ Canlı Ziyaret & Eğitim Tıklama Akışı</h3>
+            <h3 class="admin-card-title">⚡ Canlı Hareket Akışı (SQLite3 Log)</h3>
             <p class="admin-card-subtitle">
-              Sitede gerçekleşen son girişler, tıklanan seminer butonları ve nereden gelindiği
+              Sitede gerçekleşen gerçek ziyaret ve eğitim tıklama hareketleri
             </p>
           </div>
         </div>
@@ -453,38 +352,41 @@
               <tr>
                 <th>Zaman</th>
                 <th>Sayfa (.php)</th>
-                <th>İşlem / Tıklanan Eğitim</th>
-                <th>Nereden Geldi? (Kaynak)</th>
+                <th>İşlem / Eğitim Başlığı</th>
+                <th>Kaynak</th>
                 <th>Cihaz</th>
               </tr>
             </thead>
             <tbody>
-              ${agg.recentEvents
-                .slice(0, 15)
-                .map((ev) => {
-                  const srcMeta = window.ITStore.SOURCE_META[ev.source] || window.ITStore.SOURCE_META.direct;
-                  const isTraining = ev.type === 'training_click';
-                  return `
-                  <tr>
-                    <td style="font-family:monospace; font-size:0.78rem;">${escapeHtml(formatTimeAgo(ev.timestamp))}</td>
-                    <td><code>${escapeHtml(ev.profileSlug)}</code></td>
-                    <td>
-                      <strong style="color:${isTraining ? '#02a3c4' : '#1e293b'};">
-                        ${isTraining ? '🎓 ' : '👁️ '}${escapeHtml(ev.label)}
-                      </strong>
-                    </td>
-                    <td>
-                      <span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.2rem 0.6rem; border-radius:999px; font-size:0.75rem; font-weight:700; background:${srcMeta.bg}; color:${srcMeta.color};">
-                        ● ${escapeHtml(srcMeta.label)}
-                      </span>
-                    </td>
-                    <td>
-                      ${ev.device === 'mobile' ? '📱 Mobil' : '💻 Bilgisayar (PC)'}
-                    </td>
-                  </tr>
-                `;
-                })
-                .join('')}
+              ${
+                agg.recentEvents.length === 0
+                  ? `<tr><td colspan="5" style="text-align:center; padding:1.5rem; color:#64748b;">Henüz kayıt bulunmuyor. Sayfayı ziyaret edip bir eğitime tıkladığınızda anında burada görünecektir.</td></tr>`
+                  : agg.recentEvents
+                      .map((ev) => {
+                        const srcMeta = window.ITStore.SOURCE_META[ev.source] || window.ITStore.SOURCE_META.direct;
+                        const isTraining = ev.type === 'training_click';
+                        return `
+                        <tr>
+                          <td style="font-family:monospace; font-size:0.78rem;">${escapeHtml(formatTimeAgo(ev.timestamp))}</td>
+                          <td><code>${escapeHtml(ev.profileSlug)}</code></td>
+                          <td>
+                            <strong style="color:${isTraining ? '#02a3c4' : '#1e293b'};">
+                              ${isTraining ? '🎓 ' : '👁️ '}${escapeHtml(ev.label)}
+                            </strong>
+                          </td>
+                          <td>
+                            <span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.2rem 0.6rem; border-radius:999px; font-size:0.75rem; font-weight:700; background:${srcMeta.bg}; color:${srcMeta.color};">
+                              ● ${escapeHtml(srcMeta.label)}
+                            </span>
+                          </td>
+                          <td>
+                            ${ev.device === 'mobile' ? '📱 Mobil' : '💻 PC'}
+                          </td>
+                        </tr>
+                      `;
+                      })
+                      .join('')
+              }
             </tbody>
           </table>
         </div>
@@ -493,7 +395,8 @@
   }
 
   // =========================================================================
-  // 4. SEMİNER & EĞİTİM DÜZENLEME BÖLÜMÜ
+  // 3. YAPILANDIRILMIŞ SEMİNER TAKVİMİ & MODERN BUTONLAR DÜZENLEYİCİSİ
+  // (Eğitim Adı - Tarih - Başlık - Yer - Dipnot)
   // =========================================================================
   function renderTrainingsEditor(profile) {
     const trainings = profile.trainings || [];
@@ -503,34 +406,21 @@
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              🎓 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Seminer & Eğitim Yönetimi
+              🎓 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Güncel Seminer Takvimi & Butonlar
             </h2>
             <p class="admin-card-subtitle">
-              Burada yaptığınız değişiklikler doğrudan <strong>${escapeHtml(profile.phpSlug)}</strong> sayfasındaki seminer butonlarına yansır.
+              Eğitim adı, tarih, yer, dipnot ve modern buton rozetlerini düzenleyin. Kaydettiğinizde doğrudan <strong>${escapeHtml(profile.phpSlug)}</strong> sayfasına yansır.
             </p>
           </div>
           <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
             <button type="button" class="btn-secondary" id="btn-add-training">
-              ➕ Yeni Seminer Ekle
+              ➕ Yeni Seminer Programı Ekle
             </button>
             <button type="button" class="btn-primary" id="btn-save-trainings">
               💾 Değişiklikleri Kaydet & Yayınla
             </button>
           </div>
         </div>
-
-        <!-- Seminer Metin Takvimi Alanı (Orijinal sitedeki gibi) -->
-        <div class="form-group" style="margin-bottom:1.5rem; background:#fbf9f5; border:1px solid #e2ded5; padding:1.25rem; border-radius:14px;">
-          <label class="form-label">📅 Güncel Seminer Takvimi Metin Listesi</label>
-          <p style="font-size:0.78rem; color:#64748b; margin-bottom:0.5rem;">
-            Sayfanın ortasında yer alan tarih, saat ve mekan metin blokları:
-          </p>
-          <textarea class="form-textarea" id="trn-schedule-note" style="min-height:160px; font-family:monospace; font-size:0.85rem;">${escapeHtml(profile.scheduleNote || '')}</textarea>
-        </div>
-
-        <h3 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin-bottom:1rem;">
-          Seminer Tıklama Butonları (Kayıt Linkleri)
-        </h3>
 
         <div id="trainings-cms-list">
           ${trainings
@@ -539,8 +429,8 @@
             <div class="cms-item-card" data-training-index="${idx}">
               <div class="cms-item-header">
                 <div style="display:flex; align-items:center; gap:0.65rem;">
-                  <span class="cms-item-num">Buton #${idx + 1}</span>
-                  <strong style="font-size:0.95rem;">${escapeHtml(t.title)}</strong>
+                  <span class="cms-item-num">Seminer #${idx + 1}</span>
+                  <strong style="font-size:1rem; color:#0f172a;">${escapeHtml(t.title)}</strong>
                 </div>
                 <div style="display:flex; align-items:center; gap:0.75rem;">
                   <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.8rem; font-weight:600; cursor:pointer;">
@@ -555,32 +445,54 @@
 
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label class="form-label">Sol Başlık (Örn: Temel DNA Semineri - KATIL)</label>
-                  <input type="text" class="form-input trn-title" value="${escapeHtml(t.title)}" />
+                  <label class="form-label">Eğitim Adı / Başlık</label>
+                  <input type="text" class="form-input trn-title" value="${escapeHtml(t.title)}" placeholder="Örn: Basic DNA - Temel Seviye Semineri" />
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Mavi Rozet Metni (Örn: İstanbul - 6-8 Kasım veya ONLINE)</label>
-                  <input type="text" class="form-input trn-pill" value="${escapeHtml(t.pillText || '')}" />
+                  <label class="form-label">Kategori / Alan (Rozet)</label>
+                  <input type="text" class="form-input trn-category" value="${escapeHtml(t.category || 'ThetaHealing®')}" placeholder="ThetaHealing® / Silva Metodu vb." />
                 </div>
               </div>
 
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label class="form-label">Format Türü</label>
-                  <select class="form-select trn-mode">
-                    <option value="Yüz Yüze" ${t.mode === 'Yüz Yüze' ? 'selected' : ''}>Yüz Yüze</option>
-                    <option value="Online" ${t.mode === 'Online' ? 'selected' : ''}>Online</option>
-                  </select>
+                  <label class="form-label">Tarih & Saat</label>
+                  <input type="text" class="form-input trn-date" value="${escapeHtml(t.date || '')}" placeholder="Örn: 6-7-8 Kasım 2026 / 09.30-17.30" />
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Tarih Bilgisi</label>
-                  <input type="text" class="form-input trn-date" value="${escapeHtml(t.date || '')}" />
+                  <label class="form-label">Yer / Konum</label>
+                  <input type="text" class="form-input trn-location" value="${escapeHtml(t.location || '')}" placeholder="Örn: Nida Kule - İstanbul veya Online - Zoom" />
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Dipnot / Durum Açıklaması</label>
+                  <input type="text" class="form-input trn-note" value="${escapeHtml(t.note || '(Kayıtlarımız devam etmektedir.)')}" placeholder="Örn: (Kayıtlarımız devam etmektedir.)" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Katılım Formatı</label>
+                  <select class="form-select trn-mode">
+                    <option value="Yüz Yüze" ${t.mode === 'Yüz Yüze' ? 'selected' : ''}>Yüz Yüze</option>
+                    <option value="Online" ${t.mode === 'Online' ? 'selected' : ''}>Online (Zoom vb.)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-grid-2" style="background:#ffffff; padding:0.85rem; border:1px solid #e2ded5; border-radius:12px; margin-bottom:1rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Buton Üzerindeki Metin (CTA)</label>
+                  <input type="text" class="form-input trn-cta" value="${escapeHtml(t.ctaText || 'Seminere Katıl & İncele')}" placeholder="Seminere Katıl & İncele" />
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Buton Sağ Rozet Metni</label>
+                  <input type="text" class="form-input trn-pill" value="${escapeHtml(t.pillBadge || '')}" placeholder="Örn: İstanbul · 6-8 Kasım" />
                 </div>
               </div>
 
               <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Tıklanınca Açılacak Başvuru Linki (URL)</label>
-                <input type="url" class="form-input trn-url" value="${escapeHtml(t.url)}" />
+                <label class="form-label">Kayıt / Satın Alma Başvuru Linki (URL)</label>
+                <input type="url" class="form-input trn-url" value="${escapeHtml(t.url)}" placeholder="https://www.rabiaalga.com/urun/..." />
               </div>
             </div>
           `
@@ -592,7 +504,7 @@
   }
 
   // =========================================================================
-  // 5. PROFİL & BİYOGRAFİ DÜZENLEME
+  // 4. PROFİL & BİYOGRAFİ (DOSYA YÜKLEME DESTEKLİ)
   // =========================================================================
   function renderProfileEditor(profile) {
     return `
@@ -600,10 +512,10 @@
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              👤 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Profil & Biyografi Düzenle
+              👤 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Profil & Biyografi
             </h2>
             <p class="admin-card-subtitle">
-              İsim, unvan, karşılama metni ve biyografiyi güncelleyin.
+              Profil fotoğrafı ve üst kapak görselini doğrudan bilgisayarınızdan yükleyebilir veya URL olarak belirleyebilirsiniz.
             </p>
           </div>
           <button type="button" class="btn-primary" id="btn-save-profile">
@@ -617,19 +529,45 @@
             <input type="text" class="form-input" id="prof-name" value="${escapeHtml(profile.name)}" />
           </div>
           <div class="form-group">
-            <label class="form-label">Unvan / Alt Başlık</label>
+            <label class="form-label">Unvan / Rol</label>
             <input type="text" class="form-input" id="prof-role" value="${escapeHtml(profile.role || '')}" />
           </div>
         </div>
 
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Profil Fotoğrafı Yolu veya URL</label>
-            <input type="text" class="form-input" id="prof-avatar" value="${escapeHtml(profile.avatar)}" />
+        <div class="form-group">
+          <label class="form-label">Alt Uzmanlık Rozetleri / Açıklama</label>
+          <input type="text" class="form-input" id="prof-credentials" value="${escapeHtml(profile.credentials || '')}" />
+        </div>
+
+        <!-- 1) Profil Fotoğrafı Yükleme & URL -->
+        <div class="form-group" style="margin-bottom:1.5rem;">
+          <label class="form-label">Profil Fotoğrafı (Bilgisayardan Yükle veya URL)</label>
+          <div class="image-upload-wrapper">
+            <img src="${escapeHtml(profile.avatar)}" id="avatar-preview-img" class="image-preview-thumb" alt="Avatar Önizleme" />
+            <div class="image-upload-controls">
+              <label class="file-upload-btn-label">
+                📁 Bilgisayardan Fotoğraf Seç & Yükle
+                <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" />
+              </label>
+              <input type="text" class="form-input" id="prof-avatar-url" value="${escapeHtml(profile.avatar)}" placeholder="veya görsel yolu / URL'si" />
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Üst Kapak Görseli (Botanik Görsel)</label>
-            <input type="text" class="form-input" id="prof-bg" value="${escapeHtml(profile.bgImage || 'assets/images/back.jpg')}" />
+        </div>
+
+        <!-- 2) Üst Kapak Görseli Yükleme & URL -->
+        <div class="form-group" style="margin-bottom:1.5rem;">
+          <label class="form-label">Üst Kapak Görseli (Bilgisayardan Yükle veya URL)</label>
+          <div class="image-upload-wrapper">
+            <div style="width:110px; height:68px; border-radius:12px; overflow:hidden; border:2px solid #fff; box-shadow:0 4px 10px rgba(0,0,0,0.1); flex-shrink:0;">
+              <img src="${escapeHtml(profile.bgImage || 'assets/images/back.jpg')}" id="bg-preview-img" style="width:100%; height:100%; object-fit:cover;" alt="Kapak Önizleme" />
+            </div>
+            <div class="image-upload-controls">
+              <label class="file-upload-btn-label">
+                📁 Bilgisayardan Kapak Görseli Seç & Yükle
+                <input type="file" id="bg-file-input" accept="image/*" style="display:none;" />
+              </label>
+              <input type="text" class="form-input" id="prof-bg-url" value="${escapeHtml(profile.bgImage || 'assets/images/back.jpg')}" placeholder="veya görsel yolu / URL'si" />
+            </div>
           </div>
         </div>
 
@@ -658,7 +596,7 @@
   }
 
   // =========================================================================
-  // 6. SOSYAL MEDYA & VİDEO DÜZENLEME
+  // 5. SOSYAL MEDYA & VİDEO DÜZENLEME
   // =========================================================================
   function renderMediaEditor(profile) {
     const socials = profile.socials || [];
@@ -669,10 +607,10 @@
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              🔗 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Sosyal Medya Butonları
+              🔗 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Sosyal Medya Bağlantıları
             </h2>
             <p class="admin-card-subtitle">
-              Profil fotoğrafının altındaki yuvarlak butonların bağlantıları
+              Profil kartının altındaki yuvarlak butonların bağlantılarını güncelleyin.
             </p>
           </div>
           <button type="button" class="btn-primary" id="btn-save-media">
@@ -745,7 +683,7 @@
   }
 
   // =========================================================================
-  // 7. GİRİŞ BİLGİLERİNİ DEĞİŞTİR (PANEL DEĞİŞTİRME ÖZELLİĞİ)
+  // 6. GÜVENLİK & ŞİFRE DEĞİŞTİRME (PANEL DEĞİŞTİRME ÖZELLİĞİ)
   // =========================================================================
   function renderSecurityEditor() {
     const auth = window.ITStore.getAuth();
@@ -756,7 +694,7 @@
           <div>
             <h2 class="admin-card-title">🔐 Panel Giriş Bilgilerini Değiştir</h2>
             <p class="admin-card-subtitle">
-              Admin paneline giriş için kullanılan kullanıcı adı ve şifreyi buradan güncelleyebilirsiniz.
+              Admin paneline giriş için kullanılan kullanıcı adı ve şifreyi güncelleyin.
             </p>
           </div>
         </div>
@@ -801,7 +739,7 @@
   }
 
   // =========================================================================
-  // 8. ANA DASHBOARD SHELL RENDER
+  // 7. ANA DASHBOARD SHELL
   // =========================================================================
   function renderDashboard() {
     const profile = window.ITStore.getProfile(selectedProfileId);
@@ -830,7 +768,7 @@
               <div class="admin-brand-mark">İT</div>
               <div class="admin-brand-text">
                 <h1>İçimizdeki Tamirci</h1>
-                <span>Yönetim & Analitik Paneli</span>
+                <span>Yönetim Paneli</span>
               </div>
             </div>
 
@@ -838,7 +776,7 @@
             <nav class="admin-nav">
               <button type="button" class="admin-nav-btn ${activeSection === 'analytics' ? 'active' : ''}" data-nav="analytics">
                 <span>📊 Analiz & İstatistikler</span>
-                <span class="admin-nav-badge">Canlı</span>
+                <span class="admin-nav-badge">SQLite3</span>
               </button>
             </nav>
 
@@ -906,7 +844,7 @@
 
             <div class="admin-header-actions">
               <a href="${escapeHtml(profile.htmlSlug)}" target="_blank" class="btn-secondary">
-                👁️ ${escapeHtml(profile.phpSlug)} Önizle ↗
+                👁️ ${escapeHtml(profile.phpSlug)} Sayfasını Aç ↗
               </a>
             </div>
           </header>
@@ -928,11 +866,14 @@
       const existing = (profile.trainings || [])[idx] || {};
       updated.push({
         id: existing.id || `trn-${profile.id}-${Date.now()}-${idx}`,
-        title: card.querySelector('.trn-title')?.value.trim() || 'Yeni Seminer - KATIL',
-        pillText: card.querySelector('.trn-pill')?.value.trim() || 'Kayıt Ol',
+        title: card.querySelector('.trn-title')?.value.trim() || 'Yeni Seminer Programı',
+        category: card.querySelector('.trn-category')?.value.trim() || 'ThetaHealing®',
         date: card.querySelector('.trn-date')?.value.trim() || '',
-        location: '',
+        location: card.querySelector('.trn-location')?.value.trim() || '',
+        note: card.querySelector('.trn-note')?.value.trim() || '(Kayıtlarımız devam etmektedir.)',
         mode: card.querySelector('.trn-mode')?.value || 'Yüz Yüze',
+        ctaText: card.querySelector('.trn-cta')?.value.trim() || 'Seminere Katıl & İncele',
+        pillBadge: card.querySelector('.trn-pill')?.value.trim() || '',
         url: card.querySelector('.trn-url')?.value.trim() || '#',
         active: card.querySelector('.trn-active')?.checked ?? true
       });
@@ -979,36 +920,26 @@
       });
     });
 
-    // Canlı Analitik Simülasyon Butonları
-    document.querySelectorAll('[data-sim-event]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const type = btn.getAttribute('data-sim-event');
-        if (type === 'ig-rabia') {
-          const ra = window.ITStore.getProfile('rabia-alga');
-          const trn = ra.trainings[1] || ra.trainings[0];
-          window.ITStore.recordVisit('rabia-alga', 'instagram', 'mobile');
-          if (trn) window.ITStore.recordTrainingClick('rabia-alga', trn, 'instagram', 'mobile');
-          showToast('Instagram -> rabia-alga.php ziyareti ve eğitim tıklaması eklendi!');
-        } else if (type === 'wp-bedia') {
-          const bk = window.ITStore.getProfile('bedia-kahya-kilic');
-          const trn = bk.trainings[0];
-          window.ITStore.recordVisit('bedia-kahya-kilic', 'whatsapp', 'mobile');
-          if (trn) window.ITStore.recordTrainingClick('bedia-kahya-kilic', trn, 'whatsapp', 'mobile');
-          showToast('WhatsApp -> bedia-kahya-kilic.php ziyareti ve eğitim tıklaması eklendi!');
+    // Analitik Sayaç Sıfırlama
+    const btnResetAnalytics = document.getElementById('btn-reset-analytics');
+    if (btnResetAnalytics) {
+      btnResetAnalytics.addEventListener('click', () => {
+        if (confirm('Tüm SQLite3 ziyaret ve tıklama logları sıfırlanacak. Onaylıyor musunuz?')) {
+          window.ITStore.resetAnalytics();
+          renderDashboard();
+          showToast('Analitik sayaçları sıfırlandı.');
         }
-        renderDashboard();
       });
-    });
+    }
 
     // Seminerleri Kaydetme
     const btnSaveTrainings = document.getElementById('btn-save-trainings');
     if (btnSaveTrainings) {
       btnSaveTrainings.addEventListener('click', () => {
-        profile.scheduleNote = document.getElementById('trn-schedule-note')?.value.trim() || profile.scheduleNote;
         profile.trainings = collectTrainingsFromDOM(profile);
         window.ITStore.updateProfile(selectedProfileId, profile);
         renderDashboard();
-        showToast(`${profile.phpSlug} seminer bilgileri güncellendi!`);
+        showToast(`${profile.phpSlug} seminer takvimi ve butonları güncellendi!`);
       });
     }
 
@@ -1016,20 +947,23 @@
     const btnAddTraining = document.getElementById('btn-add-training');
     if (btnAddTraining) {
       btnAddTraining.addEventListener('click', () => {
-        profile.scheduleNote = document.getElementById('trn-schedule-note')?.value.trim() || profile.scheduleNote;
         profile.trainings = collectTrainingsFromDOM(profile);
         profile.trainings.push({
           id: 'trn-' + Date.now(),
-          title: 'Yeni Seminer Programı - KATIL',
-          pillText: 'İstanbul - 15-16 Mayıs',
-          date: '15-16 Mayıs 2027',
+          title: 'Yeni Seminer Programı',
+          category: 'ThetaHealing®',
+          date: '15-16 Mayıs 2027 / 09.30-17.30',
+          location: 'Nida Kule - İstanbul',
+          note: '(Kayıtlarımız devam etmektedir.)',
           mode: 'Yüz Yüze',
+          ctaText: 'Seminere Katıl & İncele',
+          pillBadge: 'İstanbul · 15-16 Mayıs',
           url: 'https://www.rabiaalga.com/',
           active: true
         });
         window.ITStore.updateProfile(selectedProfileId, profile);
         renderDashboard();
-        showToast('Yeni seminer butonu eklendi!');
+        showToast('Yeni seminer eklendi! Bilgileri düzenleyip kaydedebilirsiniz.');
       });
     }
 
@@ -1037,7 +971,6 @@
     document.querySelectorAll('[data-delete-training]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.getAttribute('data-delete-training'), 10);
-        profile.scheduleNote = document.getElementById('trn-schedule-note')?.value.trim() || profile.scheduleNote;
         profile.trainings = collectTrainingsFromDOM(profile);
         profile.trainings.splice(idx, 1);
         window.ITStore.updateProfile(selectedProfileId, profile);
@@ -1046,14 +979,65 @@
       });
     });
 
+    // DOSYA YÜKLEME 1: Avatar Fotoğrafı
+    const avatarFileInput = document.getElementById('avatar-file-input');
+    const avatarUrlInput = document.getElementById('prof-avatar-url');
+    const avatarPreviewImg = document.getElementById('avatar-preview-img');
+    if (avatarFileInput) {
+      avatarFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (uploadEvent) => {
+            const dataUrl = uploadEvent.target.result;
+            avatarUrlInput.value = dataUrl;
+            avatarPreviewImg.src = dataUrl;
+            showToast('Fotoğraf seçildi ve önizleme güncellendi.');
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+    if (avatarUrlInput) {
+      avatarUrlInput.addEventListener('input', () => {
+        avatarPreviewImg.src = avatarUrlInput.value;
+      });
+    }
+
+    // DOSYA YÜKLEME 2: Üst Kapak Görseli
+    const bgFileInput = document.getElementById('bg-file-input');
+    const bgUrlInput = document.getElementById('prof-bg-url');
+    const bgPreviewImg = document.getElementById('bg-preview-img');
+    if (bgFileInput) {
+      bgFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (uploadEvent) => {
+            const dataUrl = uploadEvent.target.result;
+            bgUrlInput.value = dataUrl;
+            bgPreviewImg.src = dataUrl;
+            showToast('Kapak görseli seçildi ve önizleme güncellendi.');
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+    if (bgUrlInput) {
+      bgUrlInput.addEventListener('input', () => {
+        bgPreviewImg.src = bgUrlInput.value;
+      });
+    }
+
     // Profil Bilgilerini Kaydetme
     const btnSaveProfile = document.getElementById('btn-save-profile');
     if (btnSaveProfile) {
       btnSaveProfile.addEventListener('click', () => {
         profile.name = document.getElementById('prof-name')?.value.trim() || profile.name;
         profile.role = document.getElementById('prof-role')?.value.trim() || profile.role;
-        profile.avatar = document.getElementById('prof-avatar')?.value.trim() || profile.avatar;
-        profile.bgImage = document.getElementById('prof-bg')?.value.trim() || profile.bgImage;
+        profile.credentials = document.getElementById('prof-credentials')?.value.trim() || '';
+        profile.avatar = document.getElementById('prof-avatar-url')?.value.trim() || profile.avatar;
+        profile.bgImage = document.getElementById('prof-bg-url')?.value.trim() || profile.bgImage;
         profile.greeting = document.getElementById('prof-greeting')?.value.trim() || profile.greeting;
         profile.bio = document.getElementById('prof-bio')?.value.trim() || profile.bio;
         profile.moreLabel = document.getElementById('prof-more-label')?.value.trim() || 'Daha Fazlası İçin...';
@@ -1061,7 +1045,7 @@
 
         window.ITStore.updateProfile(selectedProfileId, profile);
         renderDashboard();
-        showToast(`${profile.phpSlug} profil bilgileri güncellendi!`);
+        showToast(`${profile.phpSlug} profil bilgileri ve fotoğrafları güncellendi!`);
       });
     }
 
@@ -1091,7 +1075,7 @@
 
         window.ITStore.updateProfile(selectedProfileId, profile);
         renderDashboard();
-        showToast(`${profile.phpSlug} bağlantıları ve videoları kaydedildi!`);
+        showToast(`${profile.phpSlug} sosyal bağlantıları ve videoları kaydedildi!`);
       });
     }
 
@@ -1174,7 +1158,7 @@
     }
   }
 
-  // İlk Başlatma
+  // Başlat
   renderApp();
 
   // Senkronizasyon dinleyicisi

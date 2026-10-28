@@ -1,11 +1,11 @@
 /* ==========================================================================
-   İçimizdeki Tamirci — Yönetim Paneli & Analitik Dashboard Stilleri (admin.css)
+   İçimizdeki Tamirci — SQLite3 Yönetim Paneli & Analitik Stilleri (admin.css)
    ========================================================================== */
 
 .admin-body {
   background: #F4F1EA;
   color: #1a202c;
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
 }
 
@@ -106,7 +106,6 @@
   min-height: 100vh;
 }
 
-/* Sidebar */
 .admin-sidebar {
   background: #142225;
   color: #EAE6DF;
@@ -413,10 +412,25 @@
   max-width: 1380px;
 }
 
+/* Top Badge for SQLite Engine */
+.sqlite-engine-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: #e6f7fa;
+  border: 1px solid #bce9f2;
+  color: #074e5b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
 /* KPI Row */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.1rem;
   margin-bottom: 1.5rem;
 }
@@ -443,7 +457,7 @@
 
 .kpi-value {
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 2rem;
+  font-size: 2.1rem;
   font-weight: 700;
   color: #142225;
   line-height: 1.1;
@@ -457,15 +471,6 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-}
-
-.kpi-delta {
-  font-weight: 700;
-  color: #15803d;
-  background: #dcfce7;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
 }
 
 /* Analytics Panels Grid */
@@ -662,7 +667,7 @@
 }
 
 .form-label {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #334155;
 }
@@ -694,13 +699,65 @@
   line-height: 1.55;
 }
 
-/* Editable Item Card in CMS */
+/* Görsel Yükleme Alanı */
+.image-upload-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1rem;
+  background: #fbf9f5;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+}
+
+.image-preview-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  background: #ece8df;
+  flex-shrink: 0;
+}
+
+.image-upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.file-upload-btn-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #02a3c4;
+  color: #02a3c4;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: fit-content;
+}
+
+.file-upload-btn-label:hover {
+  background: #02a3c4;
+  color: #ffffff;
+}
+
+/* Editable Seminer Item Card in CMS */
 .cms-item-card {
   background: #fbf9f5;
   border: 1px solid #e2ded5;
-  border-radius: 14px;
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+  border-radius: 16px;
+  padding: 1.35rem;
+  margin-bottom: 1.15rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .cms-item-header {
@@ -776,5 +833,9 @@
   }
   .source-row {
     grid-template-columns: 1fr 1fr;
+  }
+  .image-upload-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
