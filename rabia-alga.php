@@ -1,4 +1,5 @@
 <?php
-// İçimizdeki Tamirci — Rabia Alga (rabia-alga.php)
-include __DIR__ . '/rabia-alga.html';
+// İçimizdeki Tamirci — Rabia Alga (rabia-alga)
+$_GET['slug'] = 'rabia-alga';
+include __DIR__ . '/profile.php';
 ?>

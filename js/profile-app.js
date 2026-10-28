@@ -19,7 +19,11 @@
   };
 
   let activeProfileId = document.body.dataset.profileId;
-  if (!activeProfileId || activeProfileId === 'rabia-alga') {
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramSlug = urlParams.get('slug') || urlParams.get('id');
+  if (paramSlug) {
+    activeProfileId = paramSlug;
+  } else if (!activeProfileId || activeProfileId === 'rabia-alga') {
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     const lastPart = pathParts[pathParts.length - 1];
     if (lastPart && !lastPart.includes('.') && lastPart !== 'icimizdekitamirci') {

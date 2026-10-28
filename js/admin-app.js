@@ -1099,9 +1099,9 @@
     // Analitik Sıfırlama
     const btnResetAnalytics = document.getElementById('btn-reset-analytics');
     if (btnResetAnalytics) {
-      btnResetAnalytics.addEventListener('click', () => {
+      btnResetAnalytics.addEventListener('click', async () => {
         if (confirm('Tüm ziyaret ve tıklama sayaçlarını sıfırlamak istediğinize emin misiniz?')) {
-          window.ITStore.resetAnalytics();
+          await window.ITStore.resetAnalytics();
           renderDashboard();
           showToast('Analitik sayaçları sıfırlandı.');
         }

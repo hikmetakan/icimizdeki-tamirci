@@ -188,20 +188,33 @@
     }
 
     init() {
-      // 1. Önce hızlı yanıt için localStorage'dan oku
+      // 1. Önce sunucudan doğrudan HTML içerisine enjekte edilen anlık veriyi oku (Sıfır gecikme, kesin güncel!)
       try {
-        const raw = localStorage.getItem(DB_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.tables && parsed.tables.profiles) {
-            this.tables = parsed.tables;
+        const serverStateEl = document.getElementById('server-initial-state');
+        if (serverStateEl && serverStateEl.textContent.trim()) {
+          const parsedServer = JSON.parse(serverStateEl.textContent);
+          if (parsedServer && parsedServer.tables && parsedServer.tables.profiles && Object.keys(parsedServer.tables.profiles).length > 0) {
+            this.tables = parsedServer.tables;
           }
         }
-      } catch (e) {
-        console.warn('SQLite storage okuma hatası:', e);
+      } catch (e) {}
+
+      // 2. Eğer sunucu verisi HTML'de yoksa localStorage'dan oku
+      if (!this.tables.profiles || Object.keys(this.tables.profiles).length === 0) {
+        try {
+          const raw = localStorage.getItem(DB_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.tables && parsed.tables.profiles) {
+              this.tables = parsed.tables;
+            }
+          }
+        } catch (e) {
+          console.warn('SQLite storage okuma hatası:', e);
+        }
       }
 
-      // 2. Auth kontrolü
+      // 3. Auth kontrolü
       try {
         const rawAuth = localStorage.getItem(AUTH_STORAGE_KEY);
         if (rawAuth) {
@@ -212,10 +225,10 @@
         }
       } catch (e) {}
 
-      // 3. Hemen canlı sunucudan (api.php) güncel verileri çek ve senkronize et
+      // 4. Canlı sunucudan (api.php) güncel verileri çek ve senkronize et
       this.pullFromServer();
 
-      // 4. Sekmeler arası BroadcastChannel dinle
+      // 5. Sekmeler arası BroadcastChannel dinle
       if (syncChannel) {
         syncChannel.onmessage = (event) => {
           if (event.data && event.data.type === 'SQLITE_UPDATED') {
@@ -224,8 +237,7 @@
         };
       }
 
-      // 5. Mobil sekme değişiminde (visibilitychange) otomatik senkronizasyon
-      // Admin panelindeyken form girdilerini korumak için sadece ziyaretçi sayfalarında otomatik tetiklenir
+      // 6. Mobil sekme değişiminde (visibilitychange) otomatik senkronizasyon (admin hariç)
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible' && !document.body.classList.contains('admin-body')) {
@@ -274,9 +286,9 @@
     }
 
     /**
-     * Verileri yerel hafızaya ve api.php üzerinden sunucuya yazar
+     * Yerel hafızaya sessizce yazar (ağ isteği yapmadan)
      */
-    async commit(broadcast = true) {
+    persistLocalOnly() {
       try {
         localStorage.setItem(
           DB_STORAGE_KEY,
@@ -287,6 +299,15 @@
             tables: this.tables
           })
         );
+      } catch (e) {}
+    }
+
+    /**
+     * Verileri yerel hafızaya ve api.php üzerinden sunucuya yazar
+     */
+    async commit(broadcast = true) {
+      try {
+        this.persistLocalOnly();
         if (broadcast && syncChannel) {
           syncChannel.postMessage({ type: 'SQLITE_UPDATED', timestamp: Date.now() });
         }
@@ -310,7 +331,8 @@
     }
 
     // ==========================================
-    // SQL: INSERT INTO page_visits
+    // SQL: INSERT INTO page_visits (SALT TELEMETRİ)
+    // PROFİLLERİ ASLA ÜZERİNE YAZMAZ!
     // ==========================================
     insertVisit(profileId, source, device) {
       const id = (this.tables.page_visits.length > 0 ? this.tables.page_visits[this.tables.page_visits.length - 1].id : 0) + 1;
@@ -322,12 +344,31 @@
         timestamp: new Date().toISOString()
       };
       this.tables.page_visits.push(record);
-      this.commit(true);
+      this.persistLocalOnly();
+
+      try {
+        const payload = JSON.stringify({
+          profile_id: String(profileId),
+          source: String(source),
+          device: String(device)
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('api.php?action=log_visit', new Blob([payload], { type: 'application/json' }));
+        } else {
+          fetch('api.php?action=log_visit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+            keepalive: true
+          }).catch(() => {});
+        }
+      } catch (e) {}
       return record;
     }
 
     // ==========================================
-    // SQL: INSERT INTO training_clicks
+    // SQL: INSERT INTO training_clicks (SALT TELEMETRİ)
+    // PROFİLLERİ ASLA ÜZERİNE YAZMAZ!
     // ==========================================
     insertTrainingClick(profileId, trainingId, trainingTitle, source, device) {
       const id = (this.tables.training_clicks.length > 0 ? this.tables.training_clicks[this.tables.training_clicks.length - 1].id : 0) + 1;
@@ -341,7 +382,27 @@
         timestamp: new Date().toISOString()
       };
       this.tables.training_clicks.push(record);
-      this.commit(true);
+      this.persistLocalOnly();
+
+      try {
+        const payload = JSON.stringify({
+          profile_id: String(profileId),
+          training_id: String(trainingId),
+          training_title: String(trainingTitle),
+          source: String(source),
+          device: String(device)
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('api.php?action=log_click', new Blob([payload], { type: 'application/json' }));
+        } else {
+          fetch('api.php?action=log_click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+            keepalive: true
+          }).catch(() => {});
+        }
+      } catch (e) {}
       return record;
     }
 
@@ -390,9 +451,10 @@
         devices[d]++;
       });
 
-      // GROUP BY training
+      // GROUP BY training — Dinamik profil taraması
       const trnMap = {};
-      const profileIds = profileIdFilter === 'ALL' ? ['rabia-alga', 'bedia-kahya-kilic'] : [profileIdFilter];
+      const allPids = Object.keys(this.tables.profiles || {});
+      const profileIds = profileIdFilter === 'ALL' ? allPids : [profileIdFilter];
       profileIds.forEach((pid) => {
         const pObj = this.tables.profiles[pid];
         if (pObj && pObj.trainings) {
@@ -416,10 +478,11 @@
         if (trnMap[c.training_id]) {
           trnMap[c.training_id].clicks++;
         } else {
+          const foundP = this.tables.profiles ? this.tables.profiles[c.profile_id] : null;
           trnMap[c.training_id] = {
             id: c.training_id,
             profileId: c.profile_id,
-            profileName: c.profile_id === 'rabia-alga' ? 'Rabia Alga' : 'Bedia Kahya Kılıç',
+            profileName: foundP ? foundP.name : (c.profile_id === 'rabia-alga' ? 'Rabia Alga' : 'Bedia Kahya Kılıç'),
             profileSlug: c.profile_id,
             title: c.training_title,
             category: 'Diğer',
@@ -469,11 +532,27 @@
       };
     }
 
-    // Sıfırlama
-    resetAnalytics() {
+    // Sıfırlama — Doğrudan sunucu kalıcı sıfırlaması
+    async resetAnalytics() {
       this.tables.page_visits = [];
       this.tables.training_clicks = [];
-      this.commit(true);
+      this.persistLocalOnly();
+      if (syncChannel) {
+        syncChannel.postMessage({ type: 'SQLITE_UPDATED', timestamp: Date.now() });
+      }
+      this.notifyListeners();
+
+      try {
+        const res = await fetch('api.php?action=reset_analytics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        return res.ok;
+      } catch (e) {
+        console.warn('resetAnalytics hatası:', e);
+        return false;
+      }
     }
 
     // Profil İşlemleri
@@ -482,30 +561,74 @@
     }
 
     getProfile(profileId) {
-      return this.tables.profiles[profileId] || this.tables.profiles['rabia-alga'] || INITIAL_PROFILES['rabia-alga'];
+      if (this.tables.profiles && this.tables.profiles[profileId]) {
+        return this.tables.profiles[profileId];
+      }
+      if (INITIAL_PROFILES[profileId]) {
+        return INITIAL_PROFILES[profileId];
+      }
+      const firstAvailable = this.tables.profiles ? Object.values(this.tables.profiles)[0] : null;
+      return firstAvailable || INITIAL_PROFILES['rabia-alga'];
     }
 
     updateProfile(profileId, data) {
       this.tables.profiles[profileId] = data;
-      this.commit(true);
+      this.persistLocalOnly();
+      this.saveProfileAsync(profileId, data);
       return data;
     }
 
     async saveProfileAsync(profileId, data) {
+      if (!this.tables.profiles) this.tables.profiles = {};
       this.tables.profiles[profileId] = data;
-      return await this.commit(true);
+      this.persistLocalOnly();
+      if (syncChannel) {
+        syncChannel.postMessage({ type: 'SQLITE_UPDATED', timestamp: Date.now() });
+      }
+      this.notifyListeners();
+
+      try {
+        const res = await fetch('api.php?action=save_profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            profile_id: profileId,
+            profile: data
+          })
+        });
+        return res.ok;
+      } catch (e) {
+        console.warn('saveProfileAsync sunucu hatası:', e);
+        return false;
+      }
     }
 
     async createProfileAsync(slug, data) {
-      if (!this.tables.profiles) this.tables.profiles = {};
-      this.tables.profiles[slug] = data;
-      return await this.commit(true);
+      return await this.saveProfileAsync(slug, data);
     }
 
     async deleteProfileAsync(slug) {
       if (this.tables.profiles && this.tables.profiles[slug]) {
         delete this.tables.profiles[slug];
-        return await this.commit(true);
+        this.persistLocalOnly();
+        if (syncChannel) {
+          syncChannel.postMessage({ type: 'SQLITE_UPDATED', timestamp: Date.now() });
+        }
+        this.notifyListeners();
+
+        try {
+          const res = await fetch('api.php?action=delete_profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              profile_id: slug
+            })
+          });
+          return res.ok;
+        } catch (e) {
+          console.warn('deleteProfileAsync sunucu hatası:', e);
+          return false;
+        }
       }
       return false;
     }
@@ -521,8 +644,7 @@
       cloned.id = `trn-${targetProfileId}-${Date.now()}`;
       target.trainings = target.trainings || [];
       target.trainings.push(cloned);
-      this.tables.profiles[targetProfileId] = target;
-      return await this.commit(true);
+      return await this.saveProfileAsync(targetProfileId, target);
     }
 
     getTheme() {
@@ -538,16 +660,50 @@
 
     async saveThemeAsync(theme) {
       this.tables.admin_theme = theme;
-      return await this.commit(true);
+      this.persistLocalOnly();
+      if (syncChannel) {
+        syncChannel.postMessage({ type: 'SQLITE_UPDATED', timestamp: Date.now() });
+      }
+      this.notifyListeners();
+
+      try {
+        const res = await fetch('api.php?action=save_theme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ theme })
+        });
+        return res.ok;
+      } catch (e) {
+        return false;
+      }
     }
 
-    resetAllToDefaults() {
+    async resetAllToDefaults() {
       this.tables.profiles = JSON.parse(JSON.stringify(INITIAL_PROFILES));
       this.tables.admin_auth = { username: '1', password: '1' };
       this.tables.page_visits = [];
       this.tables.training_clicks = [];
       localStorage.removeItem(AUTH_STORAGE_KEY);
-      this.commit(true);
+      this.persistLocalOnly();
+      if (syncChannel) {
+        syncChannel.postMessage({ type: 'SQLITE_UPDATED', timestamp: Date.now() });
+      }
+      this.notifyListeners();
+
+      try {
+        const res = await fetch('api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ok: true,
+            action: 'reset_analytics',
+            tables: this.tables
+          })
+        });
+        return res.ok;
+      } catch (e) {
+        return false;
+      }
     }
 
     // Auth
@@ -555,12 +711,27 @@
       return this.tables.admin_auth || { username: '1', password: '1' };
     }
 
-    saveAuth(auth) {
+    async saveAuth(auth) {
       this.tables.admin_auth = auth;
       try {
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
       } catch (e) {}
-      return this.commit(true);
+      this.persistLocalOnly();
+      if (syncChannel) {
+        syncChannel.postMessage({ type: 'SQLITE_UPDATED', timestamp: Date.now() });
+      }
+      this.notifyListeners();
+
+      try {
+        const res = await fetch('api.php?action=save_auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ auth })
+        });
+        return res.ok;
+      } catch (e) {
+        return false;
+      }
     }
 
     verifyLogin(username, password) {
@@ -665,15 +836,15 @@
     async pullFromServer() {
       return await db.pullFromServer();
     },
-    resetToDefaults() {
-      return db.resetAllToDefaults();
+    async resetToDefaults() {
+      return await db.resetAllToDefaults();
     },
 
     getAuth() {
       return db.getAuth();
     },
-    saveAuth(auth) {
-      return db.saveAuth(auth);
+    async saveAuth(auth) {
+      return await db.saveAuth(auth);
     },
     verifyLogin(u, p) {
       return db.verifyLogin(u, p);
@@ -706,8 +877,8 @@
       return db.queryAnalytics(profileIdFilter);
     },
 
-    resetAnalytics() {
-      return db.resetAnalytics();
+    async resetAnalytics() {
+      return await db.resetAnalytics();
     },
 
     onSync(callback) {
