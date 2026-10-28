@@ -1,7 +1,7 @@
 /**
  * İçimizdeki Tamirci — Modern Profesyonel Link-in-Bio Uygulaması (profile-app.js)
- * Yapılandırılmış Güncel Seminer Takvimi, Modern Seminer Butonları ve
- * Arka planda SQLite3 kaynak ve tıklama takibi
+ * Video Rehberler (YouTube Uygulamasında Açma), Yapılandırılmış Seminer Takvimi,
+ * Çok satırlı unvan desteği ve ShenAjans alt bilgisi.
  */
 
 (function () {
@@ -14,7 +14,8 @@
     calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
     mapPin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
     arrowUpRight: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>`,
-    check: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+    check: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    play: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>`
   };
 
   const activeProfileId = document.body.dataset.profileId || 'rabia-alga';
@@ -25,6 +26,12 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function extractYoutubeId(url) {
+    if (!url) return '';
+    const m = url.match(/(?:embed\/|v=|vi\/|youtu\.be\/|\/v\/|watch\?v=|\?v=)([^#&?]+)/);
+    return m ? m[1] : url.trim();
   }
 
   function renderPage() {
@@ -53,6 +60,7 @@
           </div>
 
           <h1 class="bio-name">${escapeHtml(profile.name)}</h1>
+          <!-- Çok Satırlı Unvan / Rol -->
           <p class="bio-role">${escapeHtml(profile.role || '')}</p>
           ${profile.credentials ? `<p class="bio-credentials">${escapeHtml(profile.credentials)}</p>` : ''}
 
@@ -99,8 +107,64 @@
             }
           </article>
 
-          <!-- YAPILANDIRILMIŞ VE MODERN GÜNCEL SEMİNER TAKVİMİ -->
-          <section>
+          <!-- 1) VİDEO REHBERLER (AKTİF PROGRAMLAR KISMININ ÜSTÜNDE) -->
+          ${
+            activeVideos.length > 0
+              ? `
+            <section class="bio-videos-section">
+              <div class="bio-section-title-wrap">
+                <span class="bio-section-badge">▶ Video Rehberler</span>
+                <h2 class="bio-section-title">Farkındalık Sohbetleri</h2>
+                <p class="bio-section-subtitle">Videoya tıklayarak doğrudan YouTube uygulamasında izleyebilirsiniz</p>
+              </div>
+
+              ${activeVideos
+                .map((v) => {
+                  const videoId = extractYoutubeId(v.embedUrl);
+                  const thumbUrl = videoId
+                    ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+                    : 'assets/images/back.jpg';
+                  const watchUrl = videoId
+                    ? `https://www.youtube.com/watch?v=${videoId}`
+                    : v.embedUrl;
+
+                  return `
+                    <article class="bio-video-card">
+                      <h3 class="bio-video-heading">${escapeHtml(v.title)}</h3>
+                      <a
+                        href="${escapeHtml(watchUrl)}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="bio-video-thumb-link"
+                        data-video-id="${escapeHtml(videoId)}"
+                        style="background-image: url('${escapeHtml(thumbUrl)}');"
+                        aria-label="${escapeHtml(v.title)} — YouTube uygulamasında izle"
+                      >
+                        <div class="bio-video-overlay">
+                          <div class="bio-video-play-btn" title="Videoyu YouTube'da Başlat">
+                            ${ICONS.play}
+                          </div>
+                        </div>
+
+                        <div class="bio-video-badge-bar">
+                          <span class="bio-video-pill">
+                            ${ICONS.youtube}
+                            <span>YouTube Uygulamasında Aç</span>
+                          </span>
+                          <span style="color:#ffffff; font-size:1.1rem; opacity:0.9;">↗</span>
+                        </div>
+                      </a>
+                    </article>
+                  `;
+                })
+                .join('')}
+            </section>
+          `
+              : ''
+          }
+
+          <!-- 2) AKTİF PROGRAMLAR — YAPILANDIRILMIŞ VE MODERN GÜNCEL SEMİNER TAKVİMİ -->
+          <section class="bio-seminars-section">
             <div class="bio-section-title-wrap">
               <span class="bio-section-badge">● Aktif Programlar</span>
               <h2 class="bio-section-title">Güncel Seminer Takvimi</h2>
@@ -168,51 +232,42 @@
                 .join('')}
             </div>
           </section>
-
-          <!-- Videolar Bölümü -->
-          ${
-            activeVideos.length > 0
-              ? `
-            <section class="bio-videos-section">
-              <div class="bio-section-title-wrap">
-                <span class="bio-section-badge">▶ Video Rehberler</span>
-                <h2 class="bio-section-title">Farkındalık Sohbetleri</h2>
-              </div>
-
-              ${activeVideos
-                .map(
-                  (v) => `
-                <article class="bio-video-card">
-                  <h3 class="bio-video-heading">${escapeHtml(v.title)}</h3>
-                  <div class="bio-video-frame">
-                    <iframe
-                      src="${escapeHtml(v.embedUrl)}"
-                      title="${escapeHtml(v.title)}"
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowfullscreen
-                    ></iframe>
-                  </div>
-                </article>
-              `
-                )
-                .join('')}
-            </section>
-          `
-              : ''
-          }
         </div>
 
-        <!-- Footer -->
+        <!-- Footer: ShenAjans & Telif Hakkı -->
         <footer class="bio-footer">
-          <div>
-            © 2026 İçimizdeki Tamirci | Bütün Hakları Saklıdır.
-          </div>
+          <div>© 2026 İçimizdeki Tamirci | Bütün Hakları Saklıdır.</div>
+          <div style="margin-top:0.35rem;">created by <a href="https://www.shenajans.com/" target="_blank" rel="noopener noreferrer">ShenAjans</a></div>
         </footer>
       </div>
     `;
 
     bindTrackingEvents(profile);
+    bindVideoHandlers();
+  }
+
+  function bindVideoHandlers() {
+    // Mobil cihazda tıklandığında direkt YouTube uygulamasını açmayı tetikle
+    document.querySelectorAll('.bio-video-thumb-link').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        const videoId = link.getAttribute('data-video-id');
+        if (!videoId) return;
+
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile) {
+          // Mobil cihazlarda direkt uygulama şeması
+          const appScheme = `vnd.youtube:${videoId}`;
+          const webUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+          // Uygulamayı tetikle, eğer açılamazsa standart web URL'ye devam et
+          const timer = setTimeout(() => {
+            window.location.href = webUrl;
+          }, 600);
+
+          window.location.href = appScheme;
+        }
+      });
+    });
   }
 
   function bindTrackingEvents(profile) {
@@ -231,11 +286,18 @@
   // Ziyareti SQLite3 Veritabanına Kaydet
   window.ITStore.recordVisit(activeProfileId);
 
-  // Render et
+  // İlk render (localStorage veya varsayılanlar ile anında görüntüleme)
   renderPage();
 
-  // Senkronizasyon dinleyicisi
+  // Senkronizasyon dinleyicisi: Sunucudan veri geldiğinde sayfayı güncelle
   window.ITStore.onSync(() => {
     renderPage();
+  });
+
+  // Sayfa açılır açılmaz sunucudaki (api.php) en güncel veriyi çek
+  window.ITStore.pullFromServer().then((hasUpdate) => {
+    if (hasUpdate) {
+      renderPage();
+    }
   });
 })();

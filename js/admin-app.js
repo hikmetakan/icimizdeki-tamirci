@@ -36,6 +36,34 @@
     toast._timer = setTimeout(() => toast.classList.remove('show'), 3200);
   }
 
+  function compressImageFile(file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width;
+          let h = img.height;
+          if (w > maxWidth || h > maxHeight) {
+            const ratio = Math.min(maxWidth / w, maxHeight / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   function formatTimeAgo(isoString) {
     const diffSec = Math.max(1, Math.floor((Date.now() - new Date(isoString).getTime()) / 1000));
     if (diffSec < 60) return `${diffSec} sn önce`;
@@ -67,7 +95,7 @@
     root.innerHTML = `
       <div class="admin-login-screen">
         <div class="admin-login-card">
-          <div class="login-brand-icon">İT</div>
+          <img src="assets/images/tukan-logo.png" alt="Tukan Logo" class="login-brand-icon" />
           <h1 class="login-title">Yönetici Girişi</h1>
           <p class="login-subtitle">İçimizdeki Tamirci Yönetim & Analitik Paneli</p>
 
@@ -529,8 +557,9 @@
             <input type="text" class="form-input" id="prof-name" value="${escapeHtml(profile.name)}" />
           </div>
           <div class="form-group">
-            <label class="form-label">Unvan / Rol</label>
-            <input type="text" class="form-input" id="prof-role" value="${escapeHtml(profile.role || '')}" />
+            <label class="form-label">Unvan / Rol (Çok Satırlı)</label>
+            <textarea class="form-input" id="prof-role" rows="2" placeholder="Örn: Yüksek Mimar (UÜ & İTÜ)&#10;ThetaHealing® & Silva Metodu Eğitmeni">${escapeHtml(profile.role || '')}</textarea>
+            <small style="color:var(--text-muted); font-size:0.75rem; margin-top:0.25rem; display:block;">💡 Enter tuşuna basarak unvanınızı alt satırlara bölebilirsiniz.</small>
           </div>
         </div>
 
@@ -765,7 +794,7 @@
         <aside class="admin-sidebar">
           <div>
             <div class="admin-brand">
-              <div class="admin-brand-mark">İT</div>
+              <img src="assets/images/tukan-logo.png" alt="Tukan" class="admin-brand-mark" />
               <div class="admin-brand-text">
                 <h1>İçimizdeki Tamirci</h1>
                 <span>Yönetim Paneli</span>
@@ -780,7 +809,7 @@
               </button>
             </nav>
 
-            <div class="admin-nav-group-label">Sayfa Yönetimi (${escapeHtml(profile.phpSlug)})</div>
+            <div class="admin-nav-group-label">Sayfa Yönetimi (/${escapeHtml(profile.slug || profile.id)})</div>
             <nav class="admin-nav">
               <button type="button" class="admin-nav-btn ${activeSection === 'trainings' ? 'active' : ''}" data-nav="trainings">
                 <span>🎓 Seminerler & Butonlar</span>
@@ -804,8 +833,8 @@
 
           <div class="admin-sidebar-footer">
             <div style="font-size:0.72rem; color:#8FA6AA; padding:0 0.25rem;">Sayfayı Aç:</div>
-            <a href="${escapeHtml(profile.htmlSlug)}" target="_blank" class="admin-live-link">
-              <span>🟢 ${escapeHtml(profile.phpSlug)}</span>
+            <a href="${escapeHtml(profile.slug || profile.id)}" target="_blank" class="admin-live-link">
+              <span>🟢 /${escapeHtml(profile.slug || profile.id)}</span>
               <span>↗</span>
             </a>
             <button type="button" id="btn-logout" class="admin-logout-btn">
@@ -816,7 +845,7 @@
 
         <!-- SAĞ İÇERİK -->
         <div class="admin-main">
-          <!-- Üst Bar: rabia-alga.php vs bedia-kahya-kilic.php Seçimi -->
+          <!-- Üst Bar: rabia-alga vs bedia-kahya-kilic Seçimi -->
           <header class="admin-header">
             <div class="admin-file-selector-wrap">
               <span class="admin-selector-label">Düzenlenen Sayfa:</span>
@@ -828,7 +857,7 @@
                 >
                   <img src="assets/images/RabiaAlga.jpg" alt="Rabia Alga" />
                   <span>Rabia Alga</span>
-                  <code>rabia-alga.php</code>
+                  <code>/rabia-alga</code>
                 </button>
                 <button
                   type="button"
@@ -837,14 +866,14 @@
                 >
                   <img src="assets/images/BediaKahyaKilic.jpg" alt="Bedia Kahya Kılıç" />
                   <span>Bedia Kahya Kılıç</span>
-                  <code>bedia-kahya-kilic.php</code>
+                  <code>/bedia-kahya-kilic</code>
                 </button>
               </div>
             </div>
 
             <div class="admin-header-actions">
-              <a href="${escapeHtml(profile.htmlSlug)}" target="_blank" class="btn-secondary">
-                👁️ ${escapeHtml(profile.phpSlug)} Sayfasını Aç ↗
+              <a href="${escapeHtml(profile.slug || profile.id)}" target="_blank" class="btn-secondary">
+                👁️ /${escapeHtml(profile.slug || profile.id)} Sayfasını Aç ↗
               </a>
             </div>
           </header>
@@ -935,18 +964,26 @@
     // Seminerleri Kaydetme
     const btnSaveTrainings = document.getElementById('btn-save-trainings');
     if (btnSaveTrainings) {
-      btnSaveTrainings.addEventListener('click', () => {
+      btnSaveTrainings.addEventListener('click', async () => {
+        btnSaveTrainings.disabled = true;
+        btnSaveTrainings.textContent = '⏳ Sunucuya Kaydediliyor...';
         profile.trainings = collectTrainingsFromDOM(profile);
-        window.ITStore.updateProfile(selectedProfileId, profile);
+        const ok = await window.ITStore.saveProfileAsync(selectedProfileId, profile);
+        btnSaveTrainings.disabled = false;
+        btnSaveTrainings.textContent = '💾 Seminer Takvimini Kaydet';
         renderDashboard();
-        showToast(`${profile.phpSlug} seminer takvimi ve butonları güncellendi!`);
+        if (ok) {
+          showToast(`✓ ${profile.name} seminer takvimi sunucuya kaydedildi! Mobil ve PC senkronize.`);
+        } else {
+          showToast(`⚠️ Yerel olarak kaydedildi, sunucuya aktarılıyor...`);
+        }
       });
     }
 
     // Yeni Seminer Ekleme
     const btnAddTraining = document.getElementById('btn-add-training');
     if (btnAddTraining) {
-      btnAddTraining.addEventListener('click', () => {
+      btnAddTraining.addEventListener('click', async () => {
         profile.trainings = collectTrainingsFromDOM(profile);
         profile.trainings.push({
           id: 'trn-' + Date.now(),
@@ -961,40 +998,41 @@
           url: 'https://www.rabiaalga.com/',
           active: true
         });
-        window.ITStore.updateProfile(selectedProfileId, profile);
+        await window.ITStore.saveProfileAsync(selectedProfileId, profile);
         renderDashboard();
-        showToast('Yeni seminer eklendi! Bilgileri düzenleyip kaydedebilirsiniz.');
+        showToast('Yeni seminer eklendi ve kaydedildi.');
       });
     }
 
     // Seminer Silme
     document.querySelectorAll('[data-delete-training]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const idx = parseInt(btn.getAttribute('data-delete-training'), 10);
         profile.trainings = collectTrainingsFromDOM(profile);
         profile.trainings.splice(idx, 1);
-        window.ITStore.updateProfile(selectedProfileId, profile);
+        await window.ITStore.saveProfileAsync(selectedProfileId, profile);
         renderDashboard();
         showToast('Seminer silindi.');
       });
     });
 
-    // DOSYA YÜKLEME 1: Avatar Fotoğrafı
+    // DOSYA YÜKLEME 1: Avatar Fotoğrafı (Sıkıştırmalı & Hızlı)
     const avatarFileInput = document.getElementById('avatar-file-input');
     const avatarUrlInput = document.getElementById('prof-avatar-url');
     const avatarPreviewImg = document.getElementById('avatar-preview-img');
     if (avatarFileInput) {
-      avatarFileInput.addEventListener('change', (e) => {
+      avatarFileInput.addEventListener('change', async (e) => {
         const file = e.target.files && e.target.files[0];
         if (file) {
-          const reader = new FileReader();
-          reader.onload = (uploadEvent) => {
-            const dataUrl = uploadEvent.target.result;
+          showToast('Fotoğraf optimize ediliyor...');
+          try {
+            const dataUrl = await compressImageFile(file, 800, 800, 0.85);
             avatarUrlInput.value = dataUrl;
             avatarPreviewImg.src = dataUrl;
-            showToast('Fotoğraf seçildi ve önizleme güncellendi.');
-          };
-          reader.readAsDataURL(file);
+            showToast('Fotoğraf başarıyla yüklendi! Kaydet butonuna basınız.');
+          } catch (err) {
+            showToast('Fotoğraf okunamadı: ' + err.message);
+          }
         }
       });
     }
@@ -1004,22 +1042,23 @@
       });
     }
 
-    // DOSYA YÜKLEME 2: Üst Kapak Görseli
+    // DOSYA YÜKLEME 2: Üst Kapak Görseli (Sıkıştırmalı & Hızlı)
     const bgFileInput = document.getElementById('bg-file-input');
     const bgUrlInput = document.getElementById('prof-bg-url');
     const bgPreviewImg = document.getElementById('bg-preview-img');
     if (bgFileInput) {
-      bgFileInput.addEventListener('change', (e) => {
+      bgFileInput.addEventListener('change', async (e) => {
         const file = e.target.files && e.target.files[0];
         if (file) {
-          const reader = new FileReader();
-          reader.onload = (uploadEvent) => {
-            const dataUrl = uploadEvent.target.result;
+          showToast('Kapak görseli optimize ediliyor...');
+          try {
+            const dataUrl = await compressImageFile(file, 1600, 800, 0.85);
             bgUrlInput.value = dataUrl;
             bgPreviewImg.src = dataUrl;
-            showToast('Kapak görseli seçildi ve önizleme güncellendi.');
-          };
-          reader.readAsDataURL(file);
+            showToast('Kapak görseli seçildi! Kaydet butonuna basınız.');
+          } catch (err) {
+            showToast('Görsel okunamadı: ' + err.message);
+          }
         }
       });
     }
@@ -1032,7 +1071,9 @@
     // Profil Bilgilerini Kaydetme
     const btnSaveProfile = document.getElementById('btn-save-profile');
     if (btnSaveProfile) {
-      btnSaveProfile.addEventListener('click', () => {
+      btnSaveProfile.addEventListener('click', async () => {
+        btnSaveProfile.disabled = true;
+        btnSaveProfile.textContent = '⏳ Sunucuya Kaydediliyor...';
         profile.name = document.getElementById('prof-name')?.value.trim() || profile.name;
         profile.role = document.getElementById('prof-role')?.value.trim() || profile.role;
         profile.credentials = document.getElementById('prof-credentials')?.value.trim() || '';
@@ -1043,16 +1084,24 @@
         profile.moreLabel = document.getElementById('prof-more-label')?.value.trim() || 'Daha Fazlası İçin...';
         profile.moreUrl = document.getElementById('prof-more-url')?.value.trim() || profile.moreUrl;
 
-        window.ITStore.updateProfile(selectedProfileId, profile);
+        const ok = await window.ITStore.saveProfileAsync(selectedProfileId, profile);
+        btnSaveProfile.disabled = false;
+        btnSaveProfile.textContent = '💾 Profil Bilgilerini Kaydet';
         renderDashboard();
-        showToast(`${profile.phpSlug} profil bilgileri ve fotoğrafları güncellendi!`);
+        if (ok) {
+          showToast(`✓ ${profile.name} profil bilgileri sunucuya kaydedildi! Mobil ve PC senkronize.`);
+        } else {
+          showToast(`⚠️ Yerel olarak kaydedildi, sunucuya aktarılıyor...`);
+        }
       });
     }
 
     // Sosyal Medya ve Videoları Kaydetme
     const btnSaveMedia = document.getElementById('btn-save-media');
     if (btnSaveMedia) {
-      btnSaveMedia.addEventListener('click', () => {
+      btnSaveMedia.addEventListener('click', async () => {
+        btnSaveMedia.disabled = true;
+        btnSaveMedia.textContent = '⏳ Sunucuya Kaydediliyor...';
         document.querySelectorAll('[data-social-index]').forEach((row, idx) => {
           if (profile.socials[idx]) {
             profile.socials[idx].label = row.querySelector('.soc-label')?.value.trim() || profile.socials[idx].label;
@@ -1073,35 +1122,41 @@
         });
         profile.videos = updatedVideos;
 
-        window.ITStore.updateProfile(selectedProfileId, profile);
+        const ok = await window.ITStore.saveProfileAsync(selectedProfileId, profile);
+        btnSaveMedia.disabled = false;
+        btnSaveMedia.textContent = '💾 Medya Bağlantılarını Kaydet';
         renderDashboard();
-        showToast(`${profile.phpSlug} sosyal bağlantıları ve videoları kaydedildi!`);
+        if (ok) {
+          showToast(`✓ ${profile.name} sosyal medya ve videoları sunucuya kaydedildi!`);
+        } else {
+          showToast(`⚠️ Yerel olarak kaydedildi, sunucuya aktarılıyor...`);
+        }
       });
     }
 
     // Yeni Video Ekle
     const btnAddVideo = document.getElementById('btn-add-video');
     if (btnAddVideo) {
-      btnAddVideo.addEventListener('click', () => {
+      btnAddVideo.addEventListener('click', async () => {
         profile.videos = profile.videos || [];
         profile.videos.push({
           id: 'vid-' + Date.now(),
           title: 'Yeni YouTube Videosu',
-          embedUrl: 'https://www.youtube.com/embed/BgTwMiPETuY',
+          embedUrl: 'https://www.youtube.com/watch?v=BgTwMiPETuY',
           active: true
         });
-        window.ITStore.updateProfile(selectedProfileId, profile);
+        await window.ITStore.saveProfileAsync(selectedProfileId, profile);
         renderDashboard();
-        showToast('Yeni video alanı eklendi.');
+        showToast('Yeni video alanı eklendi ve kaydedildi.');
       });
     }
 
     // Video Sil
     document.querySelectorAll('[data-delete-video]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const idx = parseInt(btn.getAttribute('data-delete-video'), 10);
         profile.videos.splice(idx, 1);
-        window.ITStore.updateProfile(selectedProfileId, profile);
+        await window.ITStore.saveProfileAsync(selectedProfileId, profile);
         renderDashboard();
         showToast('Video silindi.');
       });

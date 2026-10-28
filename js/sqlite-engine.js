@@ -1,7 +1,7 @@
 /**
  * İçimizdeki Tamirci — SQLite3 Tabanlı Veri & Analitik Motoru (sqlite-engine.js)
  * ShenApp mimarisi referans alınarak tasarlanmıştır.
- * Sıfır sahte veri: Tüm sayaçlar 0'dan başlar, yalnızca gerçek testler/ziyaretler kaydedilir.
+ * Sıfır sahte veri: Sayaçlar 0'dan başlar, mobil ve masaüstü arasında gerçek zamanlı api.php senkronizasyonu sağlar.
  */
 
 (function () {
@@ -15,10 +15,11 @@
   const INITIAL_PROFILES = {
     'rabia-alga': {
       id: 'rabia-alga',
-      phpSlug: 'rabia-alga.php',
-      htmlSlug: 'rabia-alga.html',
+      slug: 'rabia-alga',
+      phpSlug: 'rabia-alga',
+      htmlSlug: 'rabia-alga',
       name: 'Rabia Alga',
-      role: 'Yüksek Mimar (UÜ & İTÜ) · ThetaHealing®, Grigori Grabovoi® & Silva Metodu Eğitmeni',
+      role: 'Yüksek Mimar (UÜ & İTÜ)\nThetaHealing®, Grigori Grabovoi® & Silva Metodu Eğitmeni',
       credentials: 'Home By RA® Kurucusu · Bütünsel Yaşam Rehberi',
       avatar: 'assets/images/RabiaAlga.jpg',
       bgImage: 'assets/images/back.jpg',
@@ -93,23 +94,24 @@
         {
           id: 'vid-ra-1',
           title: 'ThetaHealing® ile İlgili Tüm Merak Edilenler',
-          embedUrl: 'https://www.youtube.com/embed/BgTwMiPETuY',
+          embedUrl: 'https://www.youtube.com/watch?v=BgTwMiPETuY',
           active: true
         },
         {
           id: 'vid-ra-2',
           title: 'Sayılarla Nasıl Tanıştık?',
-          embedUrl: 'https://www.youtube.com/embed/FAhJCpRIr9o?si=zX55v6sfsiQa8cmG',
+          embedUrl: 'https://www.youtube.com/watch?v=FAhJCpRIr9o',
           active: true
         }
       ]
     },
     'bedia-kahya-kilic': {
       id: 'bedia-kahya-kilic',
-      phpSlug: 'bedia-kahya-kilic.php',
-      htmlSlug: 'bedia-kahya-kilic.html',
+      slug: 'bedia-kahya-kilic',
+      phpSlug: 'bedia-kahya-kilic',
+      htmlSlug: 'bedia-kahya-kilic',
       name: 'Bedia Kahya Kılıç',
-      role: 'Endüstri Mühendisi (MBA) · ThetaHealing® & Sayıların Şifası Eğitmeni',
+      role: 'Endüstri Mühendisi (MBA)\nThetaHealing® & Sayıların Şifası Eğitmeni',
       credentials: 'Bursa & İstanbul · Farkındalık Sohbetleri',
       avatar: 'assets/images/BediaKahyaKilic.jpg',
       bgImage: 'assets/images/back.jpg',
@@ -157,13 +159,13 @@
         {
           id: 'vid-bk-1',
           title: 'ThetaHealing® ile İlgili Tüm Merak Edilenler',
-          embedUrl: 'https://www.youtube.com/embed/BgTwMiPETuY',
+          embedUrl: 'https://www.youtube.com/watch?v=BgTwMiPETuY',
           active: true
         },
         {
           id: 'vid-bk-2',
           title: 'Sayılarla Nasıl Tanıştık?',
-          embedUrl: 'https://www.youtube.com/embed/FAhJCpRIr9o?si=zX55v6sfsiQa8cmG',
+          embedUrl: 'https://www.youtube.com/watch?v=FAhJCpRIr9o',
           active: true
         }
       ]
@@ -171,26 +173,27 @@
   };
 
   /**
-   * SQLite3 Veritabanı Modeli
-   * ShenApp standardı ile birebir uyumlu: Tablolar, otomatik artan id'ler ve ilişkisel sorgular
+   * SQLite3 Veritabanı Modeli & Sunucu Senkronizasyon Katmanı
    */
   class SQLite3Database {
     constructor() {
       this.tables = {
         page_visits: [],      // id, profile_id, source, device, timestamp
         training_clicks: [],  // id, profile_id, training_id, training_title, source, device, timestamp
-        profiles: {},         // profile_id -> JSON
+        profiles: JSON.parse(JSON.stringify(INITIAL_PROFILES)),
         admin_auth: { username: '1', password: '1' }
       };
+      this.listeners = [];
       this.init();
     }
 
     init() {
+      // 1. Önce hızlı yanıt için localStorage'dan oku
       try {
         const raw = localStorage.getItem(DB_STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed && parsed.tables) {
+          if (parsed && parsed.tables && parsed.tables.profiles) {
             this.tables = parsed.tables;
           }
         }
@@ -198,13 +201,7 @@
         console.warn('SQLite storage okuma hatası:', e);
       }
 
-      // Profiller boşsa başlat
-      if (!this.tables.profiles['rabia-alga'] || !this.tables.profiles['bedia-kahya-kilic']) {
-        this.tables.profiles = JSON.parse(JSON.stringify(INITIAL_PROFILES));
-        this.commit();
-      }
-
-      // Auth kontrolü
+      // 2. Auth kontrolü
       try {
         const rawAuth = localStorage.getItem(AUTH_STORAGE_KEY);
         if (rawAuth) {
@@ -214,9 +211,71 @@
           }
         }
       } catch (e) {}
+
+      // 3. Hemen canlı sunucudan (api.php) güncel verileri çek ve senkronize et
+      this.pullFromServer();
+
+      // 4. Sekmeler arası BroadcastChannel dinle
+      if (syncChannel) {
+        syncChannel.onmessage = (event) => {
+          if (event.data && event.data.type === 'SQLITE_UPDATED') {
+            this.pullFromServer();
+          }
+        };
+      }
+
+      // 5. Mobil sekme değişiminde (visibilitychange) otomatik senkronizasyon
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            this.pullFromServer();
+          }
+        });
+      }
     }
 
-    commit(broadcast = true) {
+    notifyListeners() {
+      this.listeners.forEach((fn) => {
+        try {
+          fn();
+        } catch (e) {}
+      });
+    }
+
+    /**
+     * api.php üzerinden en güncel sunucu verilerini çeker
+     */
+    async pullFromServer() {
+      try {
+        const resp = await fetch('api.php?_t=' + Date.now(), { cache: 'no-store' });
+        if (!resp.ok) return false;
+        const data = await resp.json();
+        if (data && data.tables && data.tables.profiles && Object.keys(data.tables.profiles).length > 0) {
+          this.tables = data.tables;
+          try {
+            localStorage.setItem(
+              DB_STORAGE_KEY,
+              JSON.stringify({
+                engine: 'SQLite3',
+                version: '3.45.1',
+                updated_at: data.updated_at || new Date().toISOString(),
+                tables: this.tables
+              })
+            );
+          } catch (e) {}
+          this.notifyListeners();
+          return true;
+        }
+      } catch (e) {
+        console.warn('api.php veri çekme atlandı/çevrimdışı:', e);
+      }
+      return false;
+    }
+
+    /**
+     * Verileri yerel hafızaya ve api.php üzerinden sunucuya yazar
+     */
+    async commit(broadcast = true) {
       try {
         localStorage.setItem(
           DB_STORAGE_KEY,
@@ -230,14 +289,22 @@
         if (broadcast && syncChannel) {
           syncChannel.postMessage({ type: 'SQLITE_UPDATED', timestamp: Date.now() });
         }
-        // Node / PHP backend ile senkronizasyon denemesi
-        fetch('/api/sqlite/sync', {
+        this.notifyListeners();
+
+        // api.php üzerinden sunucuya yaz
+        const res = await fetch('api.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.tables)
-        }).catch(() => {});
+          body: JSON.stringify({
+            ok: true,
+            tables: this.tables,
+            updated_at: new Date().toISOString()
+          })
+        });
+        return res.ok;
       } catch (e) {
-        console.warn('SQLite commit hatası:', e);
+        console.warn('SQLite commit / api.php yazma hatası:', e);
+        return false;
       }
     }
 
@@ -279,7 +346,7 @@
 
     // ==========================================
     // SQL: SELECT AGGREGATIONS FOR ANALYTICS
-    // Sıfır sahte veri: Sadece gerçek kayıtları sorgular
+    // Sıfır sahte veri: Yalnızca gerçek kayıtlar
     // ==========================================
     queryAnalytics(profileIdFilter = 'ALL') {
       const visits = this.tables.page_visits.filter((v) =>
@@ -306,85 +373,81 @@
       visits.forEach((v) => {
         const s = v.source || 'direct';
         if (!sources[s]) sources[s] = { visits: 0, clicks: 0 };
-        sources[s].visits += 1;
+        sources[s].visits++;
       });
 
       clicks.forEach((c) => {
         const s = c.source || 'direct';
         if (!sources[s]) sources[s] = { visits: 0, clicks: 0 };
-        sources[s].clicks += 1;
+        sources[s].clicks++;
       });
 
       // GROUP BY device
       const devices = { mobile: 0, desktop: 0 };
       visits.forEach((v) => {
-        const d = v.device === 'desktop' ? 'desktop' : 'mobile';
-        devices[d] += 1;
+        const d = v.device === 'mobile' ? 'mobile' : 'desktop';
+        devices[d]++;
       });
 
-      // GROUP BY training_id (Hangi eğitime kaç kişi tıkladı)
-      const trainingsMap = {};
-
-      // Mevcut profillerdeki tüm eğitimleri başlangıç 0 olarak ekle
-      const targetProfiles = profileIdFilter === 'ALL' ? ['rabia-alga', 'bedia-kahya-kilic'] : [profileIdFilter];
-      targetProfiles.forEach((pid) => {
-        const pObj = this.getProfile(pid);
-        (pObj.trainings || []).forEach((t) => {
-          trainingsMap[t.id] = {
-            id: t.id,
-            title: t.title,
-            pillBadge: t.pillBadge || '',
-            date: t.date || '',
-            location: t.location || '',
-            profileId: pid,
-            profileSlug: pObj.phpSlug,
-            profileName: pObj.name,
-            clicks: 0,
-            bySource: { instagram: 0, whatsapp: 0, youtube: 0, google: 0, direct: 0, twitter: 0 }
-          };
-        });
+      // GROUP BY training
+      const trnMap = {};
+      const profileIds = profileIdFilter === 'ALL' ? ['rabia-alga', 'bedia-kahya-kilic'] : [profileIdFilter];
+      profileIds.forEach((pid) => {
+        const pObj = this.tables.profiles[pid];
+        if (pObj && pObj.trainings) {
+          pObj.trainings.forEach((t) => {
+            trnMap[t.id] = {
+              id: t.id,
+              profileId: pid,
+              profileName: pObj.name,
+              profileSlug: pObj.slug || pid,
+              title: t.title,
+              category: t.category,
+              date: t.date,
+              mode: t.mode,
+              clicks: 0
+            };
+          });
+        }
       });
 
-      // Gerçek tıklamaları topla
       clicks.forEach((c) => {
-        if (!trainingsMap[c.training_id]) {
-          trainingsMap[c.training_id] = {
+        if (trnMap[c.training_id]) {
+          trnMap[c.training_id].clicks++;
+        } else {
+          trnMap[c.training_id] = {
             id: c.training_id,
-            title: c.training_title,
-            pillBadge: '',
-            date: '',
-            location: '',
             profileId: c.profile_id,
-            profileSlug: c.profile_id === 'rabia-alga' ? 'rabia-alga.php' : 'bedia-kahya-kilic.php',
             profileName: c.profile_id === 'rabia-alga' ? 'Rabia Alga' : 'Bedia Kahya Kılıç',
-            clicks: 0,
-            bySource: { instagram: 0, whatsapp: 0, youtube: 0, google: 0, direct: 0, twitter: 0 }
+            profileSlug: c.profile_id,
+            title: c.training_title,
+            category: 'Diğer',
+            date: '-',
+            mode: 'Bilinmiyor',
+            clicks: 1
           };
         }
-        trainingsMap[c.training_id].clicks += 1;
-        const s = c.source || 'direct';
-        trainingsMap[c.training_id].bySource[s] = (trainingsMap[c.training_id].bySource[s] || 0) + 1;
       });
 
-      const trainingsList = Object.values(trainingsMap).sort((a, b) => b.clicks - a.clicks);
+      const trainingsList = Object.values(trnMap).sort((a, b) => b.clicks - a.clicks);
 
-      // Son log kayıtları (UNION of visits and clicks)
+      // Son 30 olay (Log)
       const recentEvents = [
         ...visits.map((v) => ({
-          id: 'v-' + v.id,
+          id: `v-${v.id}`,
           timestamp: v.timestamp,
           profileId: v.profile_id,
-          profileSlug: v.profile_id === 'rabia-alga' ? 'rabia-alga.php' : 'bedia-kahya-kilic.php',
+          profileSlug: v.profile_id,
           type: 'visit',
-          label: 'Sayfa Girişi',
+          label: 'Sayfa Görüntüleme',
           source: v.source,
           device: v.device
         })),
         ...clicks.map((c) => ({
-          id: 'c-' + c.id,
+          id: `c-${c.id}`,
           timestamp: c.timestamp,
           profileId: c.profile_id,
-          profileSlug: c.profile_id === 'rabia-alga' ? 'rabia-alga.php' : 'bedia-kahya-kilic.php',
+          profileSlug: c.profile_id,
           type: 'training_click',
           label: c.training_title,
           source: c.source,
@@ -423,6 +486,11 @@
       return data;
     }
 
+    async saveProfileAsync(profileId, data) {
+      this.tables.profiles[profileId] = data;
+      return await this.commit(true);
+    }
+
     resetAllToDefaults() {
       this.tables.profiles = JSON.parse(JSON.stringify(INITIAL_PROFILES));
       this.tables.admin_auth = { username: '1', password: '1' };
@@ -442,7 +510,7 @@
       try {
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
       } catch (e) {}
-      this.commit(true);
+      return this.commit(true);
     }
 
     verifyLogin(username, password) {
@@ -470,53 +538,37 @@
   // Trafik Kaynağı Tespiti
   function detectSource() {
     const params = new URLSearchParams(window.location.search);
-    const rawParam = (
-      params.get('ref') ||
-      params.get('utm_source') ||
-      params.get('source') ||
-      params.get('s') ||
-      params.get('from') ||
-      ''
-    ).toLowerCase();
-
-    if (params.has('fbclid') || rawParam.includes('ig') || rawParam.includes('insta')) {
-      sessionStorage.setItem(SESSION_SOURCE_KEY, 'instagram');
-      return 'instagram';
-    }
-    if (rawParam.includes('wa') || rawParam.includes('whatsapp') || rawParam.includes('wp')) {
-      sessionStorage.setItem(SESSION_SOURCE_KEY, 'whatsapp');
-      return 'whatsapp';
-    }
-    if (rawParam.includes('yt') || rawParam.includes('youtube') || rawParam.includes('video')) {
-      sessionStorage.setItem(SESSION_SOURCE_KEY, 'youtube');
-      return 'youtube';
-    }
-    if (rawParam.includes('tw') || rawParam.includes('twitter') || rawParam.includes('x')) {
-      sessionStorage.setItem(SESSION_SOURCE_KEY, 'twitter');
-      return 'twitter';
-    }
-    if (rawParam.includes('google') || params.has('gclid')) {
-      sessionStorage.setItem(SESSION_SOURCE_KEY, 'google');
-      return 'google';
+    const utmSource = params.get('utm_source') || params.get('ref') || params.get('source');
+    if (utmSource) {
+      const low = utmSource.toLowerCase();
+      if (low.includes('insta')) return 'instagram';
+      if (low.includes('what') || low.includes('wa')) return 'whatsapp';
+      if (low.includes('you')) return 'youtube';
+      if (low.includes('goog')) return 'google';
+      if (low.includes('twit') || low.includes('t.co') || low === 'x') return 'twitter';
+      return low;
     }
 
     const ref = (document.referrer || '').toLowerCase();
-    if (ref.includes('instagram.com')) return 'instagram';
-    if (ref.includes('whatsapp.com') || ref.includes('wa.me')) return 'whatsapp';
+    if (!ref) return 'direct';
+    if (ref.includes('instagram.com') || ref.includes('l.instagram.com')) return 'instagram';
+    if (ref.includes('whatsapp.com') || ref.includes('api.whatsapp.com') || ref.includes('wa.me')) return 'whatsapp';
     if (ref.includes('youtube.com') || ref.includes('youtu.be')) return 'youtube';
-    if (ref.includes('twitter.com') || ref.includes('t.co') || ref.includes('x.com')) return 'twitter';
     if (ref.includes('google.')) return 'google';
+    if (ref.includes('twitter.com') || ref.includes('t.co') || ref.includes('x.com')) return 'twitter';
 
-    const saved = sessionStorage.getItem(SESSION_SOURCE_KEY);
-    if (saved && SOURCE_META[saved]) return saved;
-
-    return 'direct';
+    try {
+      const host = new URL(ref).hostname.replace('www.', '');
+      return host || 'direct';
+    } catch (e) {
+      return 'direct';
+    }
   }
 
+  // Cihaz Türü Tespiti
   function detectDevice() {
     const ua = navigator.userAgent || '';
-    const isMobile =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || window.innerWidth < 768;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
     return isMobile ? 'mobile' : 'desktop';
   }
 
@@ -538,6 +590,12 @@
     },
     updateProfile(id, data) {
       return db.updateProfile(id, data);
+    },
+    async saveProfileAsync(id, data) {
+      return await db.saveProfileAsync(id, data);
+    },
+    async pullFromServer() {
+      return await db.pullFromServer();
     },
     resetToDefaults() {
       return db.resetAllToDefaults();
@@ -585,8 +643,9 @@
     },
 
     onSync(callback) {
+      db.listeners.push(callback);
       if (syncChannel) {
-        syncChannel.onmessage = (event) => callback(event.data);
+        syncChannel.addEventListener('message', () => callback());
       }
       window.addEventListener('storage', (e) => {
         if (e.key === DB_STORAGE_KEY || e.key === AUTH_STORAGE_KEY) {

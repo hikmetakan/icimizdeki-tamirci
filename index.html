@@ -20,25 +20,25 @@
         background: #ffffff;
         border: 1px solid var(--border-light);
         border-radius: 28px;
-        padding: 2.25rem 2rem;
+        padding: 2.5rem 2rem;
         box-shadow: var(--shadow-card);
         text-align: center;
         margin-bottom: 1.5rem;
       }
-      .portal-logo {
-        width: 60px;
-        height: 60px;
-        border-radius: 18px;
-        background: var(--primary);
-        color: #ffffff;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-family: var(--font-display);
-        font-size: 1.5rem;
-        font-weight: 700;
+      .portal-logo-img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        box-shadow: 0 8px 22px rgba(2, 163, 196, 0.25);
+        border: 3px solid #ffffff;
+        outline: 2px solid var(--primary-soft);
         margin-bottom: 1.15rem;
-        box-shadow: 0 8px 18px rgba(2, 163, 196, 0.3);
+        display: inline-block;
+        transition: transform 0.3s ease;
+      }
+      .portal-logo-img:hover {
+        transform: scale(1.05);
       }
       .portal-title {
         font-family: var(--font-display);
@@ -64,6 +64,7 @@
         margin-bottom: 1rem;
         transition: all 0.22s ease;
         text-align: left;
+        text-decoration: none;
       }
       .profile-item-btn:hover {
         transform: translateY(-2px);
@@ -88,19 +89,39 @@
       .profile-item-role {
         font-size: 0.84rem;
         color: var(--text-muted);
+        white-space: pre-line;
+        line-height: 1.4;
+      }
+      .portal-footer {
+        margin-top: 2.25rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-light);
+        font-size: 0.84rem;
+        color: var(--text-muted);
+        line-height: 1.7;
+      }
+      .portal-footer a {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.15s ease;
+      }
+      .portal-footer a:hover {
+        color: var(--primary-dark);
+        text-decoration: underline;
       }
     </style>
   </head>
   <body>
     <main class="portal-wrap">
       <div class="portal-card">
-        <div class="portal-logo">İT</div>
+        <img src="assets/images/tukan-logo.png" alt="İçimizdeki Tamirci Tukan" class="portal-logo-img" />
         <h1 class="portal-title">İçimizdeki Tamirci</h1>
         <p class="portal-desc">
           Bütünsel dönüşüm ve farkındalık eğitimleri seminer takvimi ve eğitmen profilleri
         </p>
 
-        <a href="rabia-alga.html" class="profile-item-btn">
+        <a href="rabia-alga" class="profile-item-btn">
           <img src="assets/images/RabiaAlga.jpg" alt="Rabia Alga" class="profile-thumb" />
           <div style="flex:1;">
             <div class="profile-item-name">Rabia Alga</div>
@@ -109,7 +130,7 @@
           <span style="font-size:1.2rem; color:var(--primary);">↗</span>
         </a>
 
-        <a href="bedia-kahya-kilic.html" class="profile-item-btn">
+        <a href="bedia-kahya-kilic" class="profile-item-btn">
           <img src="assets/images/BediaKahyaKilic.jpg" alt="Bedia Kahya Kılıç" class="profile-thumb" />
           <div style="flex:1;">
             <div class="profile-item-name">Bedia Kahya Kılıç</div>
@@ -118,11 +139,10 @@
           <span style="font-size:1.2rem; color:var(--primary);">↗</span>
         </a>
 
-        <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border-light);">
-          <a href="admin.html" style="font-size:0.86rem; font-weight:600; color:var(--text-muted); display:inline-flex; align-items:center; gap:0.4rem;">
-            <span>⚙️ Yönetici Girişi</span>
-          </a>
-        </div>
+        <footer class="portal-footer">
+          <div>© 2026 İçimizdeki Tamirci | Bütün Hakları Saklıdır.</div>
+          <div>created by <a href="https://www.shenajans.com/" target="_blank" rel="noopener noreferrer">ShenAjans</a></div>
+        </footer>
       </div>
     </main>
   </body>

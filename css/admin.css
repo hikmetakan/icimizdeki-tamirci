@@ -36,19 +36,14 @@
 }
 
 .login-brand-icon {
-  width: 58px;
-  height: 58px;
-  border-radius: 16px;
-  background: #02a3c4;
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-weight: 700;
-  font-size: 1.5rem;
-  box-shadow: 0 6px 16px rgba(2, 163, 196, 0.35);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
   margin-bottom: 1.15rem;
+  border: 2px solid #fff;
+  display: inline-block;
 }
 
 .login-title {
@@ -129,17 +124,13 @@
 }
 
 .admin-brand-mark {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: #02a3c4;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-weight: 700;
-  font-size: 1.05rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 .admin-brand-text h1 {
