@@ -18,17 +18,22 @@ RewriteRule ^ %1 [R=301,L]
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/icimizdekitamirci/([^/\s.]+)\.html [NC]
 RewriteRule ^ %1 [R=301,L]
 
-# 3. Clean URL rewrite to .php
+# 3. Clean URL rewrite to specific .php file if it exists (e.g. admin, rabia-alga, bedia-kahya-kilic)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.php -f [OR]
 RewriteCond %{DOCUMENT_ROOT}/icimizdekitamirci/$1.php -f
 RewriteRule ^([^/]+)/?$ $1.php [L,QSA]
 
-# 4. Clean URL rewrite to .html
+# 4. Clean URL rewrite to specific .html file if it exists
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.html -f [OR]
 RewriteCond %{DOCUMENT_ROOT}/icimizdekitamirci/$1.html -f
 RewriteRule ^([^/]+)/?$ $1.html [L,QSA]
+
+# 5. Dynamic Profile Router for any newly created trainer pages
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)/?$ profile.php?slug=$1 [L,QSA]
 </IfModule>

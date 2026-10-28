@@ -349,8 +349,72 @@ a {
   opacity: 0.85;
 }
 
-.bio-seminar-card.online::before {
-  background: var(--accent-warm);
+/* 1) Online Zoom Seminer Kartı (Mavi/Indigo Dijital Tema) */
+.bio-seminar-card.is-online {
+  background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
+  border: 1px solid #c7ddfc;
+  border-left: 5px solid #2563eb;
+}
+
+.bio-seminar-card.is-online:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.18);
+  border-color: #93c5fd;
+}
+
+.bio-seminar-card.is-online .bio-category-tag {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.bio-seminar-card.is-online .bio-format-tag {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+}
+
+.bio-seminar-card.is-online .bio-seminar-action-btn {
+  background: linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.bio-seminar-card.is-online .bio-seminar-action-btn:hover {
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5);
+}
+
+/* 2) Yüz Yüze Seminer Kartı (Zümrüt/Yeşil Doğal Salon Teması) */
+.bio-seminar-card.is-inperson {
+  background: linear-gradient(180deg, #ffffff 0%, #f2fbf5 100%);
+  border: 1px solid #bbf7d0;
+  border-left: 5px solid #16a34a;
+}
+
+.bio-seminar-card.is-inperson:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 32px rgba(22, 163, 74, 0.18);
+  border-color: #86efac;
+}
+
+.bio-seminar-card.is-inperson .bio-category-tag {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.bio-seminar-card.is-inperson .bio-format-tag {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+  font-weight: 700;
+}
+
+.bio-seminar-card.is-inperson .bio-seminar-action-btn {
+  background: linear-gradient(135deg, #0f766e 0%, #059669 100%);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+
+.bio-seminar-card.is-inperson .bio-seminar-action-btn:hover {
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.5);
 }
 
 .bio-seminar-card:hover {

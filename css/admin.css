@@ -2,6 +2,13 @@
    İçimizdeki Tamirci — SQLite3 Yönetim Paneli & Analitik Stilleri (admin.css)
    ========================================================================== */
 
+:root {
+  --admin-primary: #02a3c4;
+  --admin-primary-dark: #017c95;
+  --admin-sidebar-bg: #142225;
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.08);
+}
+
 .admin-body {
   background: #F4F1EA;
   color: #1a202c;
@@ -102,7 +109,7 @@
 }
 
 .admin-sidebar {
-  background: #142225;
+  background: var(--admin-sidebar-bg, #142225);
   color: #EAE6DF;
   display: flex;
   flex-direction: column;
@@ -112,6 +119,7 @@
   top: 0;
   height: 100vh;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.3s ease;
 }
 
 .admin-brand {
@@ -829,4 +837,176 @@
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ==========================================================================
+   MODAL, TEMA & SEMİNER KOPYALAMA STİLLERİ
+   ========================================================================== */
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.admin-modal {
+  width: 100%;
+  max-width: 540px;
+  background: #ffffff;
+  border-radius: 22px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.25);
+  border: 1px solid #e2ded5;
+  overflow: hidden;
+  animation: adminModalIn 0.22s ease-out;
+}
+
+@keyframes adminModalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.admin-modal-header {
+  padding: 1.25rem 1.6rem;
+  border-bottom: 1px solid #e2ded5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #faf7f2;
+}
+
+.admin-modal-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0.2rem 0.6rem;
+  line-height: 1;
+  border-radius: 8px;
+}
+.admin-modal-close:hover {
+  background: #e2ded5;
+  color: #0f172a;
+}
+
+.admin-modal-body {
+  padding: 1.6rem;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.admin-modal-footer {
+  padding: 1.1rem 1.6rem;
+  border-top: 1px solid #e2ded5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  background: #faf7f2;
+}
+
+/* Yeni Eğitmen Ekle Butonu */
+.btn-add-profile-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: #ffffff;
+  color: var(--admin-primary, #02a3c4);
+  border: 1px dashed var(--admin-primary, #02a3c4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-add-profile-tab:hover {
+  background: rgba(2, 163, 196, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Seminer Kopyalama Butonu */
+.btn-copy-training {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copy-training:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+/* Tema Kartları */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1.1rem;
+  margin-bottom: 1.75rem;
+}
+
+.theme-card {
+  border: 2px solid #e2ded5;
+  border-radius: 16px;
+  padding: 1.1rem;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  background: #ffffff;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+.theme-card:hover {
+  border-color: var(--admin-primary, #02a3c4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.theme-card.active {
+  border-color: var(--admin-primary, #02a3c4);
+  background: #faf7f2;
+  box-shadow: 0 6px 18px rgba(2, 163, 196, 0.2);
+}
+
+.theme-color-preview {
+  display: flex;
+  height: 32px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.85rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.theme-card-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.theme-card-desc {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 0.25rem;
 }

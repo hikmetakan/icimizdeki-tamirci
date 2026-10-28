@@ -225,9 +225,10 @@
       }
 
       // 5. Mobil sekme değişiminde (visibilitychange) otomatik senkronizasyon
+      // Admin panelindeyken form girdilerini korumak için sadece ziyaretçi sayfalarında otomatik tetiklenir
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') {
+          if (document.visibilityState === 'visible' && !document.body.classList.contains('admin-body')) {
             this.pullFromServer();
           }
         });
@@ -476,6 +477,10 @@
     }
 
     // Profil İşlemleri
+    getAllProfiles() {
+      return this.tables.profiles || {};
+    }
+
     getProfile(profileId) {
       return this.tables.profiles[profileId] || this.tables.profiles['rabia-alga'] || INITIAL_PROFILES['rabia-alga'];
     }
@@ -488,6 +493,51 @@
 
     async saveProfileAsync(profileId, data) {
       this.tables.profiles[profileId] = data;
+      return await this.commit(true);
+    }
+
+    async createProfileAsync(slug, data) {
+      if (!this.tables.profiles) this.tables.profiles = {};
+      this.tables.profiles[slug] = data;
+      return await this.commit(true);
+    }
+
+    async deleteProfileAsync(slug) {
+      if (this.tables.profiles && this.tables.profiles[slug]) {
+        delete this.tables.profiles[slug];
+        return await this.commit(true);
+      }
+      return false;
+    }
+
+    async cloneTrainingAsync(fromProfileId, targetProfileId, trainingId) {
+      const source = this.getProfile(fromProfileId);
+      const target = this.getProfile(targetProfileId);
+      if (!source || !target) return false;
+      const training = (source.trainings || []).find((t) => t.id === trainingId);
+      if (!training) return false;
+
+      const cloned = JSON.parse(JSON.stringify(training));
+      cloned.id = `trn-${targetProfileId}-${Date.now()}`;
+      target.trainings = target.trainings || [];
+      target.trainings.push(cloned);
+      this.tables.profiles[targetProfileId] = target;
+      return await this.commit(true);
+    }
+
+    getTheme() {
+      return (
+        this.tables.admin_theme || {
+          preset: 'teal',
+          primary: '#02a3c4',
+          primaryDark: '#017c95',
+          sidebarBg: '#142225'
+        }
+      );
+    }
+
+    async saveThemeAsync(theme) {
+      this.tables.admin_theme = theme;
       return await this.commit(true);
     }
 
@@ -585,6 +635,9 @@
     db,
     SOURCE_META,
 
+    getAllProfiles() {
+      return db.getAllProfiles();
+    },
     getProfile(id) {
       return db.getProfile(id);
     },
@@ -593,6 +646,21 @@
     },
     async saveProfileAsync(id, data) {
       return await db.saveProfileAsync(id, data);
+    },
+    async createProfileAsync(slug, data) {
+      return await db.createProfileAsync(slug, data);
+    },
+    async deleteProfileAsync(slug) {
+      return await db.deleteProfileAsync(slug);
+    },
+    async cloneTrainingAsync(fromId, toId, trainingId) {
+      return await db.cloneTrainingAsync(fromId, toId, trainingId);
+    },
+    getTheme() {
+      return db.getTheme();
+    },
+    async saveThemeAsync(theme) {
+      return await db.saveThemeAsync(theme);
     },
     async pullFromServer() {
       return await db.pullFromServer();

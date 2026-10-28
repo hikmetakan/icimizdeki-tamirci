@@ -121,23 +121,25 @@
           Bütünsel dönüşüm ve farkındalık eğitimleri seminer takvimi ve eğitmen profilleri
         </p>
 
-        <a href="rabia-alga" class="profile-item-btn">
-          <img src="assets/images/RabiaAlga.jpg" alt="Rabia Alga" class="profile-thumb" />
-          <div style="flex:1;">
-            <div class="profile-item-name">Rabia Alga</div>
-            <div class="profile-item-role">Yüksek Mimar · ThetaHealing® & Silva Metodu Eğitmeni</div>
-          </div>
-          <span style="font-size:1.2rem; color:var(--primary);">↗</span>
-        </a>
+        <div id="portal-profiles-list">
+          <a href="rabia-alga" class="profile-item-btn">
+            <img src="assets/images/RabiaAlga.jpg" alt="Rabia Alga" class="profile-thumb" />
+            <div style="flex:1;">
+              <div class="profile-item-name">Rabia Alga</div>
+              <div class="profile-item-role">Yüksek Mimar · ThetaHealing® & Silva Metodu Eğitmeni</div>
+            </div>
+            <span style="font-size:1.2rem; color:var(--primary);">↗</span>
+          </a>
 
-        <a href="bedia-kahya-kilic" class="profile-item-btn">
-          <img src="assets/images/BediaKahyaKilic.jpg" alt="Bedia Kahya Kılıç" class="profile-thumb" />
-          <div style="flex:1;">
-            <div class="profile-item-name">Bedia Kahya Kılıç</div>
-            <div class="profile-item-role">Endüstri Mühendisi (MBA) · ThetaHealing® Eğitmeni</div>
-          </div>
-          <span style="font-size:1.2rem; color:var(--primary);">↗</span>
-        </a>
+          <a href="bedia-kahya-kilic" class="profile-item-btn">
+            <img src="assets/images/BediaKahyaKilic.jpg" alt="Bedia Kahya Kılıç" class="profile-thumb" />
+            <div style="flex:1;">
+              <div class="profile-item-name">Bedia Kahya Kılıç</div>
+              <div class="profile-item-role">Endüstri Mühendisi (MBA) · ThetaHealing® Eğitmeni</div>
+            </div>
+            <span style="font-size:1.2rem; color:var(--primary);">↗</span>
+          </a>
+        </div>
 
         <footer class="portal-footer">
           <div>© 2026 İçimizdeki Tamirci | Bütün Hakları Saklıdır.</div>
@@ -145,5 +147,45 @@
         </footer>
       </div>
     </main>
+
+    <script src="js/sqlite-engine.js"></script>
+    <script>
+      (function() {
+        function escapeHtml(str) {
+          return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+
+        function renderPortalProfiles() {
+          if (!window.ITStore) return;
+          const profiles = window.ITStore.getAllProfiles();
+          const listEl = document.getElementById('portal-profiles-list');
+          if (!listEl || !profiles) return;
+          const entries = Object.values(profiles);
+          if (!entries.length) return;
+          listEl.innerHTML = entries.map(function(p) {
+            return `
+              <a href="${escapeHtml(p.slug || p.id)}" class="profile-item-btn">
+                <img src="${escapeHtml(p.avatar || 'assets/images/RabiaAlga.jpg')}" alt="${escapeHtml(p.name)}" class="profile-thumb" />
+                <div style="flex:1;">
+                  <div class="profile-item-name">${escapeHtml(p.name)}</div>
+                  <div class="profile-item-role">${escapeHtml(p.role || '')}</div>
+                </div>
+                <span style="font-size:1.2rem; color:var(--primary);">↗</span>
+              </a>
+            `;
+          }).join('');
+        }
+
+        renderPortalProfiles();
+        if (window.ITStore) {
+          window.ITStore.onSync(renderPortalProfiles);
+          window.ITStore.pullFromServer().then(renderPortalProfiles);
+        }
+      })();
+    </script>
   </body>
 </html>

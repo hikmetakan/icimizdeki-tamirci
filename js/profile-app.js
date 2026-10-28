@@ -18,7 +18,15 @@
     play: `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>`
   };
 
-  const activeProfileId = document.body.dataset.profileId || 'rabia-alga';
+  let activeProfileId = document.body.dataset.profileId;
+  if (!activeProfileId || activeProfileId === 'rabia-alga') {
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const lastPart = pathParts[pathParts.length - 1];
+    if (lastPart && !lastPart.includes('.') && lastPart !== 'icimizdekitamirci') {
+      activeProfileId = lastPart;
+    }
+  }
+  activeProfileId = activeProfileId || 'rabia-alga';
 
   function escapeHtml(str) {
     return String(str ?? '')
@@ -173,13 +181,14 @@
 
             <div class="bio-seminars-list">
               ${activeTrainings
-                .map(
-                  (t) => `
-                <article class="bio-seminar-card ${t.mode === 'Online' ? 'online' : ''}">
+                .map((t) => {
+                  const isOnline = String(t.mode || '').toLowerCase().includes('online');
+                  return `
+                <article class="bio-seminar-card ${isOnline ? 'is-online' : 'is-inperson'}">
                   <div class="bio-seminar-header">
                     <span class="bio-category-tag">${escapeHtml(t.category || 'Seminer')}</span>
-                    <span class="bio-format-tag ${t.mode === 'Online' ? 'online' : ''}">
-                      ${t.mode === 'Online' ? '💻 Online Zoom' : '📍 Yüz Yüze'}
+                    <span class="bio-format-tag">
+                      ${isOnline ? '💻 Online Zoom' : '📍 Yüz Yüze'}
                     </span>
                   </div>
 
@@ -221,14 +230,11 @@
                     data-training-id="${escapeHtml(t.id)}"
                   >
                     <span>${escapeHtml(t.ctaText || 'Seminere Katıl & İncele')}</span>
-                    <div style="display:flex; align-items:center; gap:0.4rem;">
-                      ${t.pillBadge ? `<span class="bio-seminar-badge-pill">${escapeHtml(t.pillBadge)}</span>` : ''}
-                      ${ICONS.arrowUpRight}
-                    </div>
+                    ${ICONS.arrowUpRight}
                   </a>
                 </article>
-              `
-                )
+              `;
+                })
                 .join('')}
             </div>
           </section>
