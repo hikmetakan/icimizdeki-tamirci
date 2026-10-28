@@ -1,19 +1,24 @@
 /**
- * İçimizdeki Tamirci — Veri, CMS ve Analitik Motoru (store.js)
- * Hem statik ortamda (GitHub Pages - localStorage & BroadcastChannel)
- * hem de sunucu ortamında (Node.js / PHP API) senkronize çalışır.
+ * İçimizdeki Tamirci — Veri, CMS, Analitik ve Kimlik Doğrulama Motoru (store.js)
  */
 
 const STORAGE_KEY = 'icimizdeki_tamirci_cms_v2';
 const ANALYTICS_KEY = 'icimizdeki_tamirci_analytics_v2';
+const AUTH_KEY = 'icimizdeki_tamirci_auth_v2';
 const SESSION_SOURCE_KEY = 'icimizdeki_tamirci_visitor_source';
+const SESSION_AUTH_KEY = 'icimizdeki_tamirci_admin_logged_in';
 const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('icimizdeki_tamirci_sync') : null;
+
+const DEFAULT_AUTH = {
+  username: '1',
+  password: '1'
+};
 
 const DEFAULT_DATA = {
   site: {
     brandName: 'İçimizdeki Tamirci',
     domain: 'icimizdekitamirci.com',
-    footerText: '© 2026 İçimizdeki Tamirci · Farkındalık Sohbetleri | Tüm Hakları Saklıdır.',
+    footerText: '© 2026 İçimizdeki Tamirci | Bütün Hakları Saklıdır.',
     agencyName: 'Shen Ajans',
     agencyUrl: 'https://www.shenajans.com/'
   },
@@ -27,74 +32,78 @@ const DEFAULT_DATA = {
       credentials: 'ThetaHealing® · Silva Metodu · Grigori Grabovoi® · Home By RA®',
       location: 'İstanbul, Türkiye',
       avatar: 'assets/images/RabiaAlga.jpg',
+      bgImage: 'assets/images/back.jpg',
       greeting: 'Merhaba, Ben Rabia Alga',
       bio: 'Hepiniz sevgiyle hoşgeldiniz! Ben Rabia Alga. Yüksek Mimarım (UÜ & İTÜ), mimarlık alanında ilerlemeyi hedeflediğim kariyer basamaklarımda yolum fuarcılık sektörüyle kesişti. Yoğun tempoda devam eden kariyer hayatım boyunca, oğlumun sık hastalanmasıyla girdiğim yan etkisiz çözüm arayışlarında Homeopati ile tanıştım. Bu, mucize olmalıydı, içinde madde olmayan bir şeyle kişi şifalanabiliyordu. Hastalıkların altında duygusal sebepler yatabileceğini öğrendim, araştırmaya başladım. Araştırmalarım beni sayıların şifasıyla ve daha birçok öğretiyle buluşturdu.',
-      moreLabel: 'Hakkımda Daha Fazlası',
+      moreLabel: 'Daha Fazlası İçin...',
       moreUrl: 'https://www.rabiaalga.com/sayfa/rabia-alga',
-      accentColor: '#0B6E78',
+      accentColor: '#02a3c4',
       whatsappNumber: '',
       socials: [
-        { id: 'soc-ra-1', platform: 'instagram', label: 'Instagram', handle: '@rabiaalga', url: 'https://www.instagram.com/rabiaalga/', active: true },
-        { id: 'soc-ra-2', platform: 'youtube', label: 'YouTube', handle: '@farkindaliksohbetleri', url: 'https://www.youtube.com/@farkindaliksohbetleri', active: true },
-        { id: 'soc-ra-3', platform: 'website', label: 'Web Sitesi', handle: 'rabiaalga.com', url: 'https://www.rabiaalga.com/', active: true },
-        { id: 'soc-ra-4', platform: 'twitter', label: 'X (Twitter)', handle: '@RabiaAlga', url: 'https://twitter.com/RabiaAlga', active: true },
-        { id: 'soc-ra-5', platform: 'email', label: 'E-Posta', handle: 'info@rabiaalga.com', url: 'mailto:info@rabiaalga.com', active: true }
+        { id: 'soc-ra-email', platform: 'email', label: 'E-Posta', handle: 'info@rabiaalga.com', url: 'mailto:info@rabiaalga.com', active: true },
+        { id: 'soc-ra-instagram', platform: 'instagram', label: 'Instagram', handle: '@rabiaalga', url: 'https://www.instagram.com/rabiaalga/', active: true },
+        { id: 'soc-ra-twitter', platform: 'twitter', label: 'Twitter / X', handle: '@RabiaAlga', url: 'https://twitter.com/RabiaAlga', active: true },
+        { id: 'soc-ra-youtube', platform: 'youtube', label: 'YouTube', handle: '@farkindaliksohbetleri', url: 'https://www.youtube.com/@farkindaliksohbetleri', active: true },
+        { id: 'soc-ra-website', platform: 'website', label: 'Web Sitesi', handle: 'rabiaalga.com', url: 'https://www.rabiaalga.com/', active: true }
       ],
+      scheduleNote: `Basic DNA-Temel Seviye Semineri
+6-7-8 Kasım 2026 / 09.30-17.30
+Nida Kule - İstanbul
+(Kayıtlarımız devam etmektedir.)
+
+Silva Metodu Semineri
+21-22 Kasım ve 28-29 Kasım 2026 / 10.00-20.00
+Online - Zoom
+(Kayıtlarımız devam etmektedir.)
+
+Advanced DNA-İleri Seviye Semineri
+18-19-20 Aralık 2026 / 09.30-17.30
+Nida Kule - İstanbul
+(Kayıtlarımız devam etmektedir.)
+
+Silva Metodu Semineri
+3-4 Nisan ve 10-11 Nisan 2027 / 08.30-19.30
+Ankara - Kızılay
+(Kayıtlarımız devam etmektedir.)`,
       trainings: [
         {
           id: 'trn-ra-1',
-          title: 'Basic DNA - Temel Seviye Semineri',
-          category: 'ThetaHealing®',
+          title: 'Temel DNA Semineri - KATIL',
+          pillText: 'İstanbul - 6-8 Kasım',
           date: '6-7-8 Kasım 2026',
-          time: '09.30 - 17.30',
-          location: 'Nida Kule - İstanbul',
+          location: 'İstanbul',
           mode: 'Yüz Yüze',
-          status: 'Kayıtlarımız devam etmektedir',
-          ctaLabel: 'Seminere Katıl & İncele',
           url: 'https://www.rabiaalga.com/urun/6-8-kasim-2026-basic-dna-semineri',
-          featured: true,
           active: true
         },
         {
           id: 'trn-ra-2',
-          title: 'Silva Metodu Semineri (Online)',
-          category: 'Silva Metodu',
-          date: '21-22 Kasım ve 28-29 Kasım 2026',
-          time: '10.00 - 20.00',
-          location: 'Online - Zoom',
+          title: 'Silva Methodu - KATIL',
+          pillText: 'ONLINE - 21-22 / 28-29 Kasım',
+          date: '21-22 / 28-29 Kasım 2026',
+          location: 'Online',
           mode: 'Online',
-          status: 'Kayıtlarımız devam etmektedir',
-          ctaLabel: 'Online Kayıt Ol',
           url: 'https://www.rabiaalga.com/urun/online-silva-metodu-semineri-kasim-2026?AppLanguageCode=tr',
-          featured: true,
           active: true
         },
         {
           id: 'trn-ra-3',
-          title: 'Advanced DNA - İleri Seviye Semineri',
-          category: 'ThetaHealing®',
+          title: 'İleri DNA Semineri - KATIL',
+          pillText: 'İstanbul - 18-20 Aralık',
           date: '18-19-20 Aralık 2026',
-          time: '09.30 - 17.30',
-          location: 'Nida Kule - İstanbul',
+          location: 'İstanbul',
           mode: 'Yüz Yüze',
-          status: 'Kayıtlarımız devam etmektedir',
-          ctaLabel: 'Seminere Katıl & İncele',
           url: 'https://www.rabiaalga.com/urun/11-13-aralik-2026-advanced-dna-semineri',
-          featured: false,
           active: true
         },
         {
           id: 'trn-ra-4',
-          title: 'Silva Metodu Semineri (Ankara)',
-          category: 'Silva Metodu',
-          date: '3-4 Nisan ve 10-11 Nisan 2027',
-          time: '08.30 - 19.30',
-          location: 'Ankara - Kızılay',
+          title: 'Silva Methodu - KATIL',
+          pillText: 'Ankara - 3-4 ve 10-11 Nisan',
+          date: '3-4 ve 10-11 Nisan 2027',
+          location: 'Ankara',
           mode: 'Yüz Yüze',
-          status: 'Kayıtlarımız devam etmektedir',
-          ctaLabel: 'Ankara Kayıt & Detay',
           url: 'https://www.rabiaalga.com/urun/silva-metodu-semineri-yuzyuze-ankara-nisan-2027?AppLanguageCode=tr',
-          featured: false,
           active: true
         }
       ],
@@ -102,17 +111,13 @@ const DEFAULT_DATA = {
         {
           id: 'vid-ra-1',
           title: 'ThetaHealing® ile İlgili Tüm Merak Edilenler',
-          subtitle: 'Bilinçaltı dönüşüm tekniği ve seminer süreci hakkında temel rehber',
           embedUrl: 'https://www.youtube.com/embed/BgTwMiPETuY',
-          youtubeId: 'BgTwMiPETuY',
           active: true
         },
         {
           id: 'vid-ra-2',
           title: 'Sayılarla Nasıl Tanıştık?',
-          subtitle: 'Sayıların şifası ve farkındalık yolculuğumuzun hikayesi',
-          embedUrl: 'https://www.youtube.com/embed/FAhJCpRIr9o',
-          youtubeId: 'FAhJCpRIr9o',
+          embedUrl: 'https://www.youtube.com/embed/FAhJCpRIr9o?si=zX55v6sfsiQa8cmG',
           active: true
         }
       ]
@@ -122,50 +127,52 @@ const DEFAULT_DATA = {
       phpSlug: 'bedia-kahya-kilic.php',
       htmlSlug: 'bedia-kahya-kilic.html',
       name: 'Bedia Kahya Kılıç',
-      role: 'Endüstri Mühendisi (MBA) · Farkındalık Eğitmeni',
+      role: 'Endüstri Mühendisi (MBA) · ThetaHealing® & Sayıların Şifası Eğitmeni',
       credentials: 'ThetaHealing® · Sayıların Şifası · Farkındalık Sohbetleri',
       location: 'Bursa & İstanbul, Türkiye',
       avatar: 'assets/images/BediaKahyaKilic.jpg',
+      bgImage: 'assets/images/back.jpg',
       greeting: 'Merhaba, Ben Bedia Kahya Kılıç',
       bio: 'MBA yapmış bir Endüstri Mühendisiyim. Yaklaşık 5 yıl kurumsal ve uluslararası firmalarda profesyonel hayatı deneyimledikten sonra evlenip Bursa’ya yerleştim. Benim için asıl eğitim hayatı o zaman başladı diyebilirim. Akıllı geçinen aptallardan olduğumu, aslında hiç ilgimi çekmeyen ve keyif vermeyen bölümlerde yıllarca dirsek çürüttüğümü anlayıp önce üzülmem sonra aslında ne kadar hayrıma olduğunun farkına varmam hep bundan sonra oldu..',
-      moreLabel: 'Hakkımda Daha Fazlası',
+      moreLabel: 'Daha Fazlası İçin...',
       moreUrl: 'https://bediakahyakilic.com/hakkimda/',
-      accentColor: '#0F6270',
+      accentColor: '#02a3c4',
       whatsappNumber: '',
       socials: [
-        { id: 'soc-bk-1', platform: 'instagram', label: 'Instagram', handle: '@bediakahyakilic', url: 'https://www.instagram.com/bediakahyakilic/', active: true },
-        { id: 'soc-bk-2', platform: 'youtube', label: 'YouTube', handle: '@farkindaliksohbetleri', url: 'https://www.youtube.com/@farkindaliksohbetleri', active: true },
-        { id: 'soc-bk-3', platform: 'website', label: 'Kişisel Blog & Site', handle: 'bediakahyakilic.com', url: 'https://bediakahyakilic.com/', active: true },
-        { id: 'soc-bk-4', platform: 'twitter', label: 'X (Twitter)', handle: '@BediaKahyaKILIC', url: 'https://twitter.com/BediaKahyaKILIC', active: true },
-        { id: 'soc-bk-5', platform: 'email', label: 'E-Posta', handle: 'bediakahya@gmail.com', url: 'mailto:bediakahya@gmail.com', active: true }
+        { id: 'soc-bk-email', platform: 'email', label: 'E-Posta', handle: 'bediakahya@gmail.com', url: 'mailto:bediakahya@gmail.com', active: true },
+        { id: 'soc-bk-instagram', platform: 'instagram', label: 'Instagram', handle: '@bediakahyakilic', url: 'https://www.instagram.com/bediakahyakilic/', active: true },
+        { id: 'soc-bk-twitter', platform: 'twitter', label: 'Twitter / X', handle: '@BediaKahyaKILIC', url: 'https://twitter.com/BediaKahyaKILIC', active: true },
+        { id: 'soc-bk-youtube', platform: 'youtube', label: 'YouTube', handle: '@farkindaliksohbetleri', url: 'https://www.youtube.com/@farkindaliksohbetleri', active: true },
+        { id: 'soc-bk-website', platform: 'website', label: 'Web Sitesi', handle: 'bediakahyakilic.com', url: 'https://bediakahyakilic.com/', active: true }
       ],
+      scheduleNote: `Basic DNA-Temel Seviye Semineri
+6-7-8 Kasım 2026 / 09.30-17.30
+Nida Kule - İstanbul
+(Kayıtlarımız devam etmektedir.)
+
+Advanced DNA-İleri Seviye Semineri
+18-19-20 Aralık 2026 / 09.30-17.30
+Nida Kule - İstanbul
+(Kayıtlarımız devam etmektedir.)`,
       trainings: [
         {
           id: 'trn-bk-1',
-          title: 'Basic DNA - Temel Seviye Semineri',
-          category: 'ThetaHealing®',
+          title: 'Temel DNA Semineri - KATIL',
+          pillText: 'İstanbul - 6-8 Kasım',
           date: '6-7-8 Kasım 2026',
-          time: '09.30 - 17.30',
-          location: 'Nida Kule - İstanbul',
+          location: 'İstanbul',
           mode: 'Yüz Yüze',
-          status: 'Kayıtlarımız devam etmektedir',
-          ctaLabel: 'Seminere Katıl & İncele',
           url: 'https://www.rabiaalga.com/urun/6-8-kasim-2026-basic-dna-semineri',
-          featured: true,
           active: true
         },
         {
           id: 'trn-bk-2',
-          title: 'Advanced DNA - İleri Seviye Semineri',
-          category: 'ThetaHealing®',
+          title: 'İleri DNA Semineri - KATIL',
+          pillText: 'İstanbul - 18-20 Aralık',
           date: '18-19-20 Aralık 2026',
-          time: '09.30 - 17.30',
-          location: 'Nida Kule - İstanbul',
+          location: 'İstanbul',
           mode: 'Yüz Yüze',
-          status: 'Kayıtlarımız devam etmektedir',
-          ctaLabel: 'Seminere Katıl & İncele',
           url: 'https://www.rabiaalga.com/urun/11-13-aralik-2026-advanced-dna-semineri',
-          featured: true,
           active: true
         }
       ],
@@ -173,17 +180,13 @@ const DEFAULT_DATA = {
         {
           id: 'vid-bk-1',
           title: 'ThetaHealing® ile İlgili Tüm Merak Edilenler',
-          subtitle: 'ThetaHealing tekniği nedir, nasıl uygulanır ve kimler katılabilir?',
           embedUrl: 'https://www.youtube.com/embed/BgTwMiPETuY',
-          youtubeId: 'BgTwMiPETuY',
           active: true
         },
         {
           id: 'vid-bk-2',
           title: 'Sayılarla Nasıl Tanıştık?',
-          subtitle: 'Sayıların dili ve yaşam yolculuğumuzdaki rehberliği üzerine sohbet',
-          embedUrl: 'https://www.youtube.com/embed/FAhJCpRIr9o',
-          youtubeId: 'FAhJCpRIr9o',
+          embedUrl: 'https://www.youtube.com/embed/FAhJCpRIr9o?si=zX55v6sfsiQa8cmG',
           active: true
         }
       ]
@@ -200,12 +203,12 @@ function generateInitialAnalytics() {
     const key = d.toISOString().slice(0, 10);
     daily[key] = {
       'rabia-alga': {
-        visits: 68 + ((i * 17) % 45),
-        clicks: 26 + ((i * 11) % 22)
+        visits: 72 + ((i * 17) % 45),
+        clicks: 29 + ((i * 11) % 22)
       },
       'bedia-kahya-kilic': {
-        visits: 52 + ((i * 13) % 38),
-        clicks: 19 + ((i * 9) % 16)
+        visits: 54 + ((i * 13) % 38),
+        clicks: 21 + ((i * 9) % 16)
       }
     };
   }
@@ -230,26 +233,22 @@ function generateInitialAnalytics() {
         },
         trainingClicks: {
           'trn-ra-1': {
-            title: 'Basic DNA - Temel Seviye Semineri',
-            date: '6-7-8 Kasım 2026',
+            title: 'Temel DNA Semineri - KATIL (İstanbul - 6-8 Kasım)',
             clicks: 184,
             bySource: { instagram: 108, whatsapp: 52, youtube: 14, google: 6, direct: 4, twitter: 0 }
           },
           'trn-ra-2': {
-            title: 'Silva Metodu Semineri (Online)',
-            date: '21-22 / 28-29 Kasım 2026',
+            title: 'Silva Methodu - KATIL (ONLINE - 21-22 / 28-29 Kasım)',
             clicks: 152,
             bySource: { instagram: 84, whatsapp: 48, youtube: 12, google: 5, direct: 2, twitter: 1 }
           },
           'trn-ra-3': {
-            title: 'Advanced DNA - İleri Seviye Semineri',
-            date: '18-19-20 Aralık 2026',
+            title: 'İleri DNA Semineri - KATIL (İstanbul - 18-20 Aralık)',
             clicks: 86,
             bySource: { instagram: 51, whatsapp: 22, youtube: 8, google: 3, direct: 1, twitter: 1 }
           },
           'trn-ra-4': {
-            title: 'Silva Metodu Semineri (Ankara)',
-            date: '3-4 ve 10-11 Nisan 2027',
+            title: 'Silva Methodu - KATIL (Ankara - 3-4 ve 10-11 Nisan)',
             clicks: 64,
             bySource: { instagram: 35, whatsapp: 17, youtube: 7, google: 2, direct: 0, twitter: 3 }
           }
@@ -281,14 +280,12 @@ function generateInitialAnalytics() {
         },
         trainingClicks: {
           'trn-bk-1': {
-            title: 'Basic DNA - Temel Seviye Semineri',
-            date: '6-7-8 Kasım 2026',
+            title: 'Temel DNA Semineri - KATIL (İstanbul - 6-8 Kasım)',
             clicks: 214,
             bySource: { instagram: 128, whatsapp: 58, youtube: 18, google: 7, direct: 2, twitter: 1 }
           },
           'trn-bk-2': {
-            title: 'Advanced DNA - İleri Seviye Semineri',
-            date: '18-19-20 Aralık 2026',
+            title: 'İleri DNA Semineri - KATIL (İstanbul - 18-20 Aralık)',
             clicks: 134,
             bySource: { instagram: 76, whatsapp: 36, youtube: 13, google: 4, direct: 2, twitter: 3 }
           }
@@ -311,7 +308,7 @@ function generateInitialAnalytics() {
         profileId: 'rabia-alga',
         profileSlug: 'rabia-alga.php',
         type: 'training_click',
-        label: 'Silva Metodu Semineri (Online)',
+        label: 'Silva Methodu - KATIL (Online)',
         source: 'whatsapp',
         device: 'mobile'
       },
@@ -321,7 +318,7 @@ function generateInitialAnalytics() {
         profileId: 'rabia-alga',
         profileSlug: 'rabia-alga.php',
         type: 'training_click',
-        label: 'Basic DNA - Temel Seviye Semineri',
+        label: 'Temel DNA Semineri - KATIL (İstanbul)',
         source: 'instagram',
         device: 'mobile'
       },
@@ -331,7 +328,7 @@ function generateInitialAnalytics() {
         profileId: 'bedia-kahya-kilic',
         profileSlug: 'bedia-kahya-kilic.php',
         type: 'training_click',
-        label: 'Basic DNA - Temel Seviye Semineri',
+        label: 'Temel DNA Semineri - KATIL (İstanbul)',
         source: 'instagram',
         device: 'desktop'
       },
@@ -344,26 +341,6 @@ function generateInitialAnalytics() {
         label: 'Sayfa Görüntüleme',
         source: 'whatsapp',
         device: 'mobile'
-      },
-      {
-        id: 'evt-5',
-        timestamp: new Date(Date.now() - 21 * 60 * 1000).toISOString(),
-        profileId: 'rabia-alga',
-        profileSlug: 'rabia-alga.php',
-        type: 'training_click',
-        label: 'Advanced DNA - İleri Seviye Semineri',
-        source: 'youtube',
-        device: 'desktop'
-      },
-      {
-        id: 'evt-6',
-        timestamp: new Date(Date.now() - 29 * 60 * 1000).toISOString(),
-        profileId: 'rabia-alga',
-        profileSlug: 'rabia-alga.php',
-        type: 'training_click',
-        label: 'Silva Metodu Semineri (Ankara)',
-        source: 'instagram',
-        device: 'mobile'
       }
     ]
   };
@@ -375,12 +352,57 @@ const SOURCE_META = {
   youtube: { label: 'YouTube', color: '#D92525', bg: '#FEF2F2', icon: 'youtube' },
   google: { label: 'Google Arama', color: '#2563EB', bg: '#EFF6FF', icon: 'search' },
   twitter: { label: 'X (Twitter)', color: '#334155', bg: '#F1F5F9', icon: 'twitter' },
-  direct: { label: 'Direkt Giriş / Link', color: '#0B6E78', bg: '#E6F3F4', icon: 'link' }
+  direct: { label: 'Direkt Giriş / Link', color: '#02a3c4', bg: '#E6F8FB', icon: 'link' }
 };
 
 const Store = {
   SOURCE_META,
 
+  /* Kimlik Doğrulama / Admin Şifre Yönetimi */
+  getAuth() {
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.username && parsed.password) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Auth okuma hatası:', e);
+    }
+    return { ...DEFAULT_AUTH };
+  },
+
+  saveAuth(auth) {
+    try {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+      return true;
+    } catch (e) {
+      console.warn('Auth kaydetme hatası:', e);
+      return false;
+    }
+  },
+
+  verifyLogin(username, password) {
+    const auth = this.getAuth();
+    const ok = String(username).trim() === String(auth.username).trim() &&
+               String(password).trim() === String(auth.password).trim();
+    if (ok) {
+      sessionStorage.setItem(SESSION_AUTH_KEY, '1');
+    }
+    return ok;
+  },
+
+  isAdminLoggedIn() {
+    return sessionStorage.getItem(SESSION_AUTH_KEY) === '1';
+  },
+
+  logoutAdmin() {
+    sessionStorage.removeItem(SESSION_AUTH_KEY);
+  },
+
+  /* CMS Veri Yönetimi */
   getData() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -404,7 +426,6 @@ const Store = {
       if (broadcast && syncChannel) {
         syncChannel.postMessage({ type: 'CMS_UPDATED', timestamp: Date.now() });
       }
-      // Sunucu API mevcutsa arka planda senkronize et
       fetch('/api/cms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -424,7 +445,6 @@ const Store = {
     const data = this.getData();
     data.profiles[profileId] = updatedProfile;
     this.saveData(data, true);
-    // Analitik eğitim başlıklarını da senkronize et
     this.syncAnalyticsTrainings(profileId, updatedProfile.trainings || []);
     return updatedProfile;
   },
@@ -432,9 +452,11 @@ const Store = {
   resetToDefaults() {
     const copy = JSON.parse(JSON.stringify(DEFAULT_DATA));
     this.saveData(copy, true);
+    this.saveAuth({ ...DEFAULT_AUTH });
     return copy;
   },
 
+  /* Analitik Yönetimi */
   getAnalytics() {
     try {
       const raw = localStorage.getItem(ANALYTICS_KEY);
@@ -471,16 +493,15 @@ const Store = {
     const profSummary = analytics.summary[profileId];
     if (!profSummary) return;
     trainings.forEach((t) => {
+      const fullLabel = t.pillText ? `${t.title} (${t.pillText})` : t.title;
       if (!profSummary.trainingClicks[t.id]) {
         profSummary.trainingClicks[t.id] = {
-          title: t.title,
-          date: t.date,
+          title: fullLabel,
           clicks: 0,
           bySource: { instagram: 0, whatsapp: 0, youtube: 0, google: 0, direct: 0, twitter: 0 }
         };
       } else {
-        profSummary.trainingClicks[t.id].title = t.title;
-        profSummary.trainingClicks[t.id].date = t.date;
+        profSummary.trainingClicks[t.id].title = fullLabel;
       }
     });
     this.saveAnalytics(analytics, true);
@@ -592,6 +613,7 @@ const Store = {
 
     const source = overrideSource || this.detectVisitorSource();
     const device = overrideDevice || this.detectDevice();
+    const fullTitle = training.pillText ? `${training.title} (${training.pillText})` : training.title;
 
     profSummary.totalClicks += 1;
     if (!profSummary.sources[source]) {
@@ -601,13 +623,12 @@ const Store = {
 
     if (!profSummary.trainingClicks[training.id]) {
       profSummary.trainingClicks[training.id] = {
-        title: training.title,
-        date: training.date || '',
+        title: fullTitle,
         clicks: 0,
         bySource: { instagram: 0, whatsapp: 0, youtube: 0, google: 0, direct: 0, twitter: 0 }
       };
     }
-    profSummary.trainingClicks[training.id].title = training.title;
+    profSummary.trainingClicks[training.id].title = fullTitle;
     profSummary.trainingClicks[training.id].clicks += 1;
     profSummary.trainingClicks[training.id].bySource[source] =
       (profSummary.trainingClicks[training.id].bySource[source] || 0) + 1;
@@ -627,7 +648,7 @@ const Store = {
       profileId,
       profileSlug: profileId === 'rabia-alga' ? 'rabia-alga.php' : 'bedia-kahya-kilic.php',
       type: 'training_click',
-      label: training.title,
+      label: fullTitle,
       source,
       device
     });
@@ -668,7 +689,7 @@ const Store = {
       };
     }
     window.addEventListener('storage', (e) => {
-      if (e.key === STORAGE_KEY || e.key === ANALYTICS_KEY) {
+      if (e.key === STORAGE_KEY || e.key === ANALYTICS_KEY || e.key === AUTH_KEY) {
         callback({ type: 'STORAGE_CHANGED', key: e.key });
       }
     });

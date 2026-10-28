@@ -1,8 +1,7 @@
 /**
- * İçimizdeki Tamirci — Yönetim Paneli & Analitik Uygulaması (admin-app.js)
- * Seçilen sayfayı (rabia-alga.php veya bedia-kahya-kilic.php) anında düzenler,
- * hangi eğitime kaç kişi tıkladığını ve hangi kaynaktan (Instagram, WhatsApp vb.)
- * geldiğini gerçek zamanlı olarak raporlar.
+ * İçimizdeki Tamirci — Yönetim Paneli & Giriş Doğrulama (admin-app.js)
+ * Varsayılan Giriş: Kullanıcı Adı: 1, Şifre: 1
+ * Panel değiştirme (kullanıcı adı ve şifre güncelleme) özelliği içerir.
  */
 
 (function () {
@@ -12,7 +11,7 @@
     selectedProfileId = 'rabia-alga';
   }
 
-  let activeSection = urlParams.get('tab') || 'analytics'; // analytics | trainings | profile | media | links
+  let activeSection = urlParams.get('tab') || 'analytics'; // analytics | trainings | profile | media | security
   let analyticsFilterProfile = 'ALL'; // ALL | rabia-alga | bedia-kahya-kilic
 
   function escapeHtml(str) {
@@ -34,7 +33,7 @@
     toast.innerHTML = `<span>✅ ${escapeHtml(msg)}</span>`;
     toast.classList.add('show');
     clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => toast.classList.remove('show'), 3000);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), 3200);
   }
 
   function formatTimeAgo(isoString) {
@@ -58,6 +57,86 @@
     return raw;
   }
 
+  // =========================================================================
+  // 1. GİRİŞ PANELİ (LOGIN SCREEN)
+  // =========================================================================
+  function renderLoginScreen() {
+    const root = document.getElementById('admin-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="admin-login-screen">
+        <div class="admin-login-card">
+          <div class="login-brand-icon">İT</div>
+          <h1 class="login-title">Yönetici Girişi</h1>
+          <p class="login-subtitle">İçimizdeki Tamirci Yönetim & Analitik Paneli</p>
+
+          <form id="admin-login-form" class="login-form">
+            <div id="login-error" class="login-error-box">
+              Hatalı kullanıcı adı veya şifre!
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="login-username">Kullanıcı Adı</label>
+              <input
+                type="text"
+                id="login-username"
+                class="form-input"
+                placeholder="Kullanıcı adınızı girin"
+                required
+                autocomplete="username"
+                autofocus
+              />
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="login-password">Şifre</label>
+              <input
+                type="password"
+                id="login-password"
+                class="form-input"
+                placeholder="Şifrenizi girin"
+                required
+                autocomplete="current-password"
+              />
+            </div>
+
+            <button type="submit" class="btn-primary" style="justify-content:center; padding:0.75rem; font-size:0.95rem; margin-top:0.5rem;">
+              Giriş Yap →
+            </button>
+          </form>
+
+          <div class="login-hint-box">
+            💡 <strong>Varsayılan Bilgiler:</strong><br />
+            Kullanıcı Adı: <code>1</code> &nbsp;|&nbsp; Şifre: <code>1</code><br />
+            <span style="font-size:0.72rem; color:#64748b;">(Giriş yaptıktan sonra sol menüden şifrenizi değiştirebilirsiniz)</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const form = document.getElementById('admin-login-form');
+    const errBox = document.getElementById('login-error');
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const u = document.getElementById('login-username').value;
+        const p = document.getElementById('login-password').value;
+
+        if (window.ITStore.verifyLogin(u, p)) {
+          renderApp();
+        } else {
+          errBox.classList.add('show');
+          document.getElementById('login-password').value = '';
+          document.getElementById('login-password').focus();
+        }
+      });
+    }
+  }
+
+  // =========================================================================
+  // 2. ANALİTİK VERİ HESAPLAMA
+  // =========================================================================
   function getAggregatedAnalytics() {
     const analytics = window.ITStore.getAnalytics();
     const profilesToInclude =
@@ -104,7 +183,6 @@
           profileSlug: profObj.phpSlug,
           profileName: profObj.name,
           title: tStat.title,
-          date: tStat.date || '',
           clicks: tStat.clicks || 0,
           bySource: tStat.bySource || {}
         });
@@ -117,18 +195,6 @@
       analyticsFilterProfile === 'ALL' ? true : e.profileId === analyticsFilterProfile
     );
 
-    // Son 10 günlük grafik serisi
-    const dayKeys = Object.keys(analytics.daily || {}).sort().slice(-10);
-    const dailySeries = dayKeys.map((dk) => {
-      let v = 0;
-      let c = 0;
-      profilesToInclude.forEach((pid) => {
-        v += analytics.daily[dk]?.[pid]?.visits || 0;
-        c += analytics.daily[dk]?.[pid]?.clicks || 0;
-      });
-      return { date: dk, visits: v, clicks: c };
-    });
-
     return {
       totalVisits,
       uniqueVisitors,
@@ -137,18 +203,17 @@
       sources,
       devices,
       trainingsList,
-      recentEvents,
-      dailySeries
+      recentEvents
     };
   }
 
+  // =========================================================================
+  // 3. ANALİTİK PANELİ (Hangi eğitime kaç kişi tıkladı & nereden geldi)
+  // =========================================================================
   function renderAnalyticsSection() {
     const agg = getAggregatedAnalytics();
     const maxTrainingClicks = Math.max(1, ...agg.trainingsList.map((t) => t.clicks));
-    const maxSourceVisits = Math.max(
-      1,
-      ...Object.values(agg.sources).map((s) => s.visits)
-    );
+    const maxSourceVisits = Math.max(1, ...Object.values(agg.sources).map((s) => s.visits));
 
     const mobilePct =
       agg.devices.mobile + agg.devices.desktop > 0
@@ -156,18 +221,15 @@
         : 80;
     const desktopPct = 100 - mobilePct;
 
-    // SVG Bar Chart for Daily Visits vs Clicks
-    const maxDaily = Math.max(1, ...agg.dailySeries.map((d) => d.visits));
-
     return `
       <!-- Üst Filtre & Hızlı Canlı Test Çubuğu -->
-      <div class="admin-card" style="background:linear-gradient(135deg, #142225 0%, #0B4F57 100%); color:#fff; border:none;">
+      <div class="admin-card" style="background:linear-gradient(135deg, #142225 0%, #028ba8 100%); color:#fff; border:none;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
           <div>
-            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:#9FE2EA; font-weight:700; margin-bottom:0.25rem;">
-              ● Gerçek Zamanlı Ziyaretçi & Eğitim Tıklama Analizi
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:#a5f3fc; font-weight:700; margin-bottom:0.25rem;">
+              ● Gerçek Zamanlı Trafik & Tıklama Analitiği
             </div>
-            <h2 style="font-family:var(--font-display); font-size:1.45rem; font-weight:600;">
+            <h2 style="font-family:'Playfair Display', Georgia, serif; font-size:1.45rem; font-weight:700;">
               Hangi Eğitime Kaç Kişi Tıkladı & Nereden Geldi?
             </h2>
           </div>
@@ -185,17 +247,16 @@
           </div>
         </div>
 
-        <!-- Canlı Test Simülatörü -->
         <div style="margin-top:1.15rem; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
-          <span style="font-size:0.82rem; color:#D5ECEF;">
-            🧪 <strong>Canlı Test:</strong> Aşağıdaki butonlarla Instagram veya WhatsApp'tan örnek ziyaret ve eğitim tıklaması gönderip tabloların anında güncellendiğini test edebilirsiniz:
+          <span style="font-size:0.82rem; color:#e0f2fe;">
+            🧪 <strong>Canlı Test:</strong> Aşağıdaki butonlarla Instagram veya WhatsApp'tan eğitim tıklaması simüle edip sayıların anında arttığını görebilirsiniz:
           </span>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <button type="button" class="btn-secondary" style="background:rgba(255,255,255,0.16); color:#fff; border:1px solid rgba(255,255,255,0.28); font-size:0.78rem; padding:0.42rem 0.8rem;" data-sim-event="ig-rabia">
-              📸 +1 Instagram → rabia-alga.php (Silva Online Tıkla)
+            <button type="button" class="btn-secondary" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); font-size:0.78rem; padding:0.42rem 0.8rem;" data-sim-event="ig-rabia">
+              📸 +1 Instagram → rabia-alga.php (Silva Tıkla)
             </button>
-            <button type="button" class="btn-secondary" style="background:rgba(255,255,255,0.16); color:#fff; border:1px solid rgba(255,255,255,0.28); font-size:0.78rem; padding:0.42rem 0.8rem;" data-sim-event="wp-bedia">
-              💬 +1 WhatsApp → bedia-kahya-kilic.php (Basic DNA Tıkla)
+            <button type="button" class="btn-secondary" style="background:rgba(255,255,255,0.18); color:#fff; border:1px solid rgba(255,255,255,0.3); font-size:0.78rem; padding:0.42rem 0.8rem;" data-sim-event="wp-bedia">
+              💬 +1 WhatsApp → bedia-kahya-kilic.php (Temel DNA Tıkla)
             </button>
           </div>
         </div>
@@ -250,15 +311,15 @@
         </div>
       </div>
 
-      <!-- İki Sütunlu Analiz: 1) Hangi Eğitime Kaç Kişi Tıkladı? 2) Nereden Geldi (Instagram / WhatsApp vb.) -->
+      <!-- İki Kolonlu Analitik Detayı -->
       <div class="analytics-grid-2">
-        <!-- SOL: Eğitim Bazlı Tıklama Analizi -->
+        <!-- SOL: Eğitim Bazlı Tıklamalar -->
         <div class="admin-card" style="margin-bottom:0;">
           <div class="admin-card-header">
             <div>
               <h3 class="admin-card-title">🎓 Hangi Eğitime Kaç Kişi Tıkladı?</h3>
               <p class="admin-card-subtitle">
-                Her bir seminerin aldığı toplam tıklama ve tıklayanların hangi sosyal medyadan geldiği
+                Her bir seminerin aldığı toplam tıklama ve nereden (Instagram, WhatsApp vb.) gelindiği
               </p>
             </div>
           </div>
@@ -278,8 +339,8 @@
                   <div class="training-stat-top">
                     <div>
                       <div class="training-stat-name">${escapeHtml(t.title)}</div>
-                      <div style="font-size:0.76rem; color:var(--text-muted); margin-top:0.15rem;">
-                        Sayfa: <code>${escapeHtml(t.profileSlug)}</code> (${escapeHtml(t.profileName)}) · 📅 ${escapeHtml(t.date)}
+                      <div style="font-size:0.76rem; color:#64748b; margin-top:0.15rem;">
+                        Sayfa: <code>${escapeHtml(t.profileSlug)}</code> (${escapeHtml(t.profileName)})
                       </div>
                     </div>
                     <div class="training-stat-count">
@@ -305,14 +366,14 @@
           </div>
         </div>
 
-        <!-- SAĞ: Ziyaretçiler Nereden Geldi? (Instagram, WhatsApp, YouTube vb.) -->
+        <!-- SAĞ: Nereden Geldi (Kaynak Analizi) -->
         <div style="display:flex; flex-direction:column; gap:1.25rem;">
           <div class="admin-card" style="margin-bottom:0;">
             <div class="admin-card-header">
               <div>
                 <h3 class="admin-card-title">🧭 Ziyaretçiler Nereden Geldi?</h3>
                 <p class="admin-card-subtitle">
-                  Instagram, WhatsApp, YouTube ve diğer kanallardan gelen ziyaretçi & tıklama dağılımı
+                  Instagram, WhatsApp, YouTube ve diğer kanalların ziyaret ve tıklama dağılımı
                 </p>
               </div>
             </div>
@@ -338,11 +399,11 @@
                       </div>
                     </div>
 
-                    <div style="text-align:right; font-family:var(--font-mono); font-size:0.8rem;">
-                      <strong>${sData.visits}</strong> giriş (%${sharePct})
+                    <div style="text-align:right; font-family:monospace; font-size:0.8rem;">
+                      <strong>${sData.visits}</strong> kişi (%${sharePct})
                     </div>
 
-                    <div style="text-align:right; font-family:var(--font-mono); font-size:0.78rem; color:var(--accent); font-weight:700;">
+                    <div style="text-align:right; font-family:monospace; font-size:0.78rem; color:#02a3c4; font-weight:700;">
                       ${sData.clicks} tık
                     </div>
                   </div>
@@ -352,53 +413,36 @@
             </div>
           </div>
 
-          <!-- Cihaz ve Günlük Grafik Özeti -->
+          <!-- Cihaz Dağılımı -->
           <div class="admin-card" style="margin-bottom:0;">
             <div class="admin-card-header" style="margin-bottom:0.9rem;">
               <div>
-                <h3 class="admin-card-title">📱 Cihaz & Günlük Trafik Trendi</h3>
+                <h3 class="admin-card-title">📱 Mobil vs PC Giriş Oranı</h3>
                 <p class="admin-card-subtitle">
-                  Mobil (${agg.devices.mobile}) vs Bilgisayar/PC (${agg.devices.desktop}) giriş oranı
+                  Mobil cihazlardan girenler (%${mobilePct}) ve bilgisayardan (PC) girenler (%${desktopPct})
                 </p>
               </div>
             </div>
 
             <div style="display:flex; height:14px; border-radius:999px; overflow:hidden; margin-bottom:0.65rem;">
-              <div style="width:${mobilePct}%; background:var(--accent);" title="Mobil %${mobilePct}"></div>
-              <div style="width:${desktopPct}%; background:var(--warm);" title="PC %${desktopPct}"></div>
+              <div style="width:${mobilePct}%; background:#02a3c4;" title="Mobil %${mobilePct}"></div>
+              <div style="width:${desktopPct}%; background:#142225;" title="PC %${desktopPct}"></div>
             </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-weight:600; color:var(--text-secondary); margin-bottom:1.25rem;">
-              <span>📱 Mobil Arayüzü Gören: %${mobilePct} (${agg.devices.mobile} kişi)</span>
-              <span>💻 PC Tasarımını Gören: %${desktopPct} (${agg.devices.desktop} kişi)</span>
-            </div>
-
-            <!-- Son 10 Gün Çubuk Grafiği -->
-            <div style="display:grid; grid-template-columns:repeat(${agg.dailySeries.length}, 1fr); gap:6px; align-items:end; height:96px; padding-top:10px; border-top:1px dashed var(--border);">
-              ${agg.dailySeries
-                .map((d) => {
-                  const hPct = Math.max(12, Math.round((d.visits / maxDaily) * 100));
-                  const shortDate = d.date.slice(5).replace('-', '/');
-                  return `
-                  <div style="display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end;">
-                    <span style="font-family:var(--font-mono); font-size:0.65rem; color:var(--text-muted);">${d.visits}</span>
-                    <div style="width:100%; max-width:24px; height:${hPct}%; background:var(--accent); border-radius:4px 4px 0 0;" title="${d.date}: ${d.visits} giriş, ${d.clicks} eğitim tıklaması"></div>
-                    <span style="font-family:var(--font-mono); font-size:0.64rem; color:var(--text-muted);">${shortDate}</span>
-                  </div>
-                `;
-                })
-                .join('')}
+            <div style="display:flex; justify-content:space-between; font-size:0.78rem; font-weight:600; color:#475569;">
+              <span>📱 Mobil: %${mobilePct} (${agg.devices.mobile} kişi)</span>
+              <span>💻 Bilgisayar (PC): %${desktopPct} (${agg.devices.desktop} kişi)</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Son Ziyaret ve Tıklama Hareketleri Tablosu -->
+      <!-- Canlı Hareket Akışı Tablosu -->
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
             <h3 class="admin-card-title">⚡ Canlı Ziyaret & Eğitim Tıklama Akışı</h3>
             <p class="admin-card-subtitle">
-              Sitede gerçekleşen son girişler, tıklanan seminerler, gelinen kaynak (Instagram, WhatsApp vb.) ve cihaz bilgisi
+              Sitede gerçekleşen son girişler, tıklanan seminer butonları ve nereden gelindiği
             </p>
           </div>
         </div>
@@ -422,10 +466,10 @@
                   const isTraining = ev.type === 'training_click';
                   return `
                   <tr>
-                    <td style="font-family:var(--font-mono); font-size:0.78rem;">${escapeHtml(formatTimeAgo(ev.timestamp))}</td>
+                    <td style="font-family:monospace; font-size:0.78rem;">${escapeHtml(formatTimeAgo(ev.timestamp))}</td>
                     <td><code>${escapeHtml(ev.profileSlug)}</code></td>
                     <td>
-                      <strong style="color:${isTraining ? 'var(--accent)' : 'var(--text)'};">
+                      <strong style="color:${isTraining ? '#02a3c4' : '#1e293b'};">
                         ${isTraining ? '🎓 ' : '👁️ '}${escapeHtml(ev.label)}
                       </strong>
                     </td>
@@ -448,6 +492,9 @@
     `;
   }
 
+  // =========================================================================
+  // 4. SEMİNER & EĞİTİM DÜZENLEME BÖLÜMÜ
+  // =========================================================================
   function renderTrainingsEditor(profile) {
     const trainings = profile.trainings || [];
 
@@ -459,18 +506,31 @@
               🎓 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Seminer & Eğitim Yönetimi
             </h2>
             <p class="admin-card-subtitle">
-              Burada yaptığınız her değişiklik kaydedildiğinde doğrudan <strong>${escapeHtml(profile.phpSlug)}</strong> sayfasındaki seminer kartlarına yansır.
+              Burada yaptığınız değişiklikler doğrudan <strong>${escapeHtml(profile.phpSlug)}</strong> sayfasındaki seminer butonlarına yansır.
             </p>
           </div>
-          <div style="display:flex; gap:0.6rem;">
+          <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
             <button type="button" class="btn-secondary" id="btn-add-training">
-              ➕ Yeni Seminer / Eğitim Ekle
+              ➕ Yeni Seminer Ekle
             </button>
             <button type="button" class="btn-primary" id="btn-save-trainings">
               💾 Değişiklikleri Kaydet & Yayınla
             </button>
           </div>
         </div>
+
+        <!-- Seminer Metin Takvimi Alanı (Orijinal sitedeki gibi) -->
+        <div class="form-group" style="margin-bottom:1.5rem; background:#fbf9f5; border:1px solid #e2ded5; padding:1.25rem; border-radius:14px;">
+          <label class="form-label">📅 Güncel Seminer Takvimi Metin Listesi</label>
+          <p style="font-size:0.78rem; color:#64748b; margin-bottom:0.5rem;">
+            Sayfanın ortasında yer alan tarih, saat ve mekan metin blokları:
+          </p>
+          <textarea class="form-textarea" id="trn-schedule-note" style="min-height:160px; font-family:monospace; font-size:0.85rem;">${escapeHtml(profile.scheduleNote || '')}</textarea>
+        </div>
+
+        <h3 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin-bottom:1rem;">
+          Seminer Tıklama Butonları (Kayıt Linkleri)
+        </h3>
 
         <div id="trainings-cms-list">
           ${trainings
@@ -479,7 +539,7 @@
             <div class="cms-item-card" data-training-index="${idx}">
               <div class="cms-item-header">
                 <div style="display:flex; align-items:center; gap:0.65rem;">
-                  <span class="cms-item-num">Eğitim #${idx + 1}</span>
+                  <span class="cms-item-num">Buton #${idx + 1}</span>
                   <strong style="font-size:0.95rem;">${escapeHtml(t.title)}</strong>
                 </div>
                 <div style="display:flex; align-items:center; gap:0.75rem;">
@@ -495,53 +555,31 @@
 
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label class="form-label">Seminer / Eğitim Başlığı</label>
+                  <label class="form-label">Sol Başlık (Örn: Temel DNA Semineri - KATIL)</label>
                   <input type="text" class="form-input trn-title" value="${escapeHtml(t.title)}" />
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Kategori Rozeti (Örn: ThetaHealing® / Silva Metodu)</label>
-                  <input type="text" class="form-input trn-category" value="${escapeHtml(t.category || '')}" />
+                  <label class="form-label">Mavi Rozet Metni (Örn: İstanbul - 6-8 Kasım veya ONLINE)</label>
+                  <input type="text" class="form-input trn-pill" value="${escapeHtml(t.pillText || '')}" />
                 </div>
               </div>
 
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label class="form-label">Tarih Bilgisi</label>
-                  <input type="text" class="form-input trn-date" value="${escapeHtml(t.date)}" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Saat Aralığı</label>
-                  <input type="text" class="form-input trn-time" value="${escapeHtml(t.time)}" />
-                </div>
-              </div>
-
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label class="form-label">Konum / Mekan (Örn: Nida Kule - İstanbul veya Online - Zoom)</label>
-                  <input type="text" class="form-input trn-location" value="${escapeHtml(t.location)}" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Katılım Formatı</label>
+                  <label class="form-label">Format Türü</label>
                   <select class="form-select trn-mode">
                     <option value="Yüz Yüze" ${t.mode === 'Yüz Yüze' ? 'selected' : ''}>Yüz Yüze</option>
                     <option value="Online" ${t.mode === 'Online' ? 'selected' : ''}>Online</option>
                   </select>
                 </div>
-              </div>
-
-              <div class="form-grid-2">
                 <div class="form-group">
-                  <label class="form-label">Durum Notu</label>
-                  <input type="text" class="form-input trn-status" value="${escapeHtml(t.status || 'Kayıtlarımız devam etmektedir')}" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Buton Metni (CTA)</label>
-                  <input type="text" class="form-input trn-cta" value="${escapeHtml(t.ctaLabel || 'Seminere Katıl & İncele')}" />
+                  <label class="form-label">Tarih Bilgisi</label>
+                  <input type="text" class="form-input trn-date" value="${escapeHtml(t.date || '')}" />
                 </div>
               </div>
 
               <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Başvuru / Satın Alma Linki (Tıklandığında Gidilecek URL)</label>
+                <label class="form-label">Tıklanınca Açılacak Başvuru Linki (URL)</label>
                 <input type="url" class="form-input trn-url" value="${escapeHtml(t.url)}" />
               </div>
             </div>
@@ -553,6 +591,9 @@
     `;
   }
 
+  // =========================================================================
+  // 5. PROFİL & BİYOGRAFİ DÜZENLEME
+  // =========================================================================
   function renderProfileEditor(profile) {
     return `
       <div class="admin-card">
@@ -562,7 +603,7 @@
               👤 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Profil & Biyografi Düzenle
             </h2>
             <p class="admin-card-subtitle">
-              Seçili eğitmen sayfasının başlık, biyografi, fotoğraf ve renk ayarlarını güncelleyin.
+              İsim, unvan, karşılama metni ve biyografiyi güncelleyin.
             </p>
           </div>
           <button type="button" class="btn-primary" id="btn-save-profile">
@@ -572,52 +613,43 @@
 
         <div class="form-grid-2">
           <div class="form-group">
-            <label class="form-label">Ad Soyad (Sayfa Başlığı)</label>
+            <label class="form-label">Ad Soyad</label>
             <input type="text" class="form-input" id="prof-name" value="${escapeHtml(profile.name)}" />
           </div>
           <div class="form-group">
-            <label class="form-label">Unvan / Profesyonel Rol</label>
-            <input type="text" class="form-input" id="prof-role" value="${escapeHtml(profile.role)}" />
+            <label class="form-label">Unvan / Alt Başlık</label>
+            <input type="text" class="form-input" id="prof-role" value="${escapeHtml(profile.role || '')}" />
           </div>
         </div>
 
         <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label">Uzmanlık Etiketleri ('·' ile ayırın)</label>
-            <input type="text" class="form-input" id="prof-credentials" value="${escapeHtml(profile.credentials)}" />
-          </div>
           <div class="form-group">
             <label class="form-label">Profil Fotoğrafı Yolu veya URL</label>
             <input type="text" class="form-input" id="prof-avatar" value="${escapeHtml(profile.avatar)}" />
           </div>
-        </div>
-
-        <div class="form-grid-2">
           <div class="form-group">
-            <label class="form-label">Hakkımda Karşılama Başlığı</label>
-            <input type="text" class="form-input" id="prof-greeting" value="${escapeHtml(profile.greeting)}" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Tema Vurgu Rengi (Hex)</label>
-            <div style="display:flex; gap:0.5rem;">
-              <input type="color" id="prof-color-picker" value="${escapeHtml(profile.accentColor || '#0B6E78')}" style="width:48px; height:40px; border:1px solid var(--border); border-radius:8px; cursor:pointer;" />
-              <input type="text" class="form-input" id="prof-accent" value="${escapeHtml(profile.accentColor || '#0B6E78')}" />
-            </div>
+            <label class="form-label">Üst Kapak Görseli (Botanik Görsel)</label>
+            <input type="text" class="form-input" id="prof-bg" value="${escapeHtml(profile.bgImage || 'assets/images/back.jpg')}" />
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Hakkımda / Biyografi Metni</label>
+          <label class="form-label">Hakkımda Karşılama Başlığı</label>
+          <input type="text" class="form-input" id="prof-greeting" value="${escapeHtml(profile.greeting)}" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Biyografi / Hakkımda Metni</label>
           <textarea class="form-textarea" id="prof-bio">${escapeHtml(profile.bio)}</textarea>
         </div>
 
         <div class="form-grid-2">
           <div class="form-group">
-            <label class="form-label">"Daha Fazlası" Buton Metni</label>
-            <input type="text" class="form-input" id="prof-more-label" value="${escapeHtml(profile.moreLabel || 'Hakkımda Daha Fazlası')}" />
+            <label class="form-label">"Daha Fazlası İçin..." Buton Metni</label>
+            <input type="text" class="form-input" id="prof-more-label" value="${escapeHtml(profile.moreLabel || 'Daha Fazlası İçin...')}" />
           </div>
           <div class="form-group">
-            <label class="form-label">"Daha Fazlası" Hedef Link (URL)</label>
+            <label class="form-label">"Daha Fazlası İçin..." Hedef Link (URL)</label>
             <input type="url" class="form-input" id="prof-more-url" value="${escapeHtml(profile.moreUrl || '')}" />
           </div>
         </div>
@@ -625,24 +657,26 @@
     `;
   }
 
+  // =========================================================================
+  // 6. SOSYAL MEDYA & VİDEO DÜZENLEME
+  // =========================================================================
   function renderMediaEditor(profile) {
     const socials = profile.socials || [];
     const videos = profile.videos || [];
 
     return `
-      <!-- Sosyal Medya Bağlantıları -->
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
             <h2 class="admin-card-title">
-              🔗 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Sosyal Medya İkonları & Linkleri
+              🔗 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Sosyal Medya Butonları
             </h2>
             <p class="admin-card-subtitle">
-              Profil kartının altındaki sosyal medya butonlarını düzenleyin veya gizleyin.
+              Profil fotoğrafının altındaki yuvarlak butonların bağlantıları
             </p>
           </div>
           <button type="button" class="btn-primary" id="btn-save-media">
-            💾 Sosyal Medya & Videoları Kaydet
+            💾 Bağlantıları Kaydet
           </button>
         </div>
 
@@ -650,15 +684,15 @@
           .map(
             (s, idx) => `
           <div class="cms-item-card" data-social-index="${idx}" style="padding:1rem;">
-            <div style="display:grid; grid-template-columns:140px 1fr 1.5fr 110px; gap:0.75rem; align-items:center;">
+            <div style="display:grid; grid-template-columns:130px 1fr 1.5fr 100px; gap:0.75rem; align-items:center;">
               <div>
                 <span class="cms-item-num" style="text-transform:uppercase;">${escapeHtml(s.platform)}</span>
               </div>
               <div>
-                <input type="text" class="form-input soc-label" value="${escapeHtml(s.label)}" placeholder="Buton Adı" />
+                <input type="text" class="form-input soc-label" value="${escapeHtml(s.label)}" />
               </div>
               <div>
-                <input type="text" class="form-input soc-url" value="${escapeHtml(s.url)}" placeholder="https://..." />
+                <input type="text" class="form-input soc-url" value="${escapeHtml(s.url)}" />
               </div>
               <div style="text-align:right;">
                 <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.8rem; font-weight:600; cursor:pointer;">
@@ -673,13 +707,12 @@
           .join('')}
       </div>
 
-      <!-- YouTube Videoları -->
       <div class="admin-card">
         <div class="admin-card-header">
           <div>
-            <h2 class="admin-card-title">▶ YouTube Video Rehberler</h2>
+            <h2 class="admin-card-title">▶ YouTube Videoları</h2>
             <p class="admin-card-subtitle">
-              Sayfada gömülü (embed) olarak gösterilen YouTube videoları
+              Sayfada gösterilen gömülü (embed) YouTube videoları
             </p>
           </div>
           <button type="button" class="btn-secondary" id="btn-add-video">
@@ -695,18 +728,12 @@
               <span class="cms-item-num">Video #${idx + 1}</span>
               <button type="button" class="btn-danger-outline" data-delete-video="${idx}">🗑️ Videoyu Sil</button>
             </div>
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label class="form-label">Video Başlığı</label>
-                <input type="text" class="form-input vid-title" value="${escapeHtml(v.title)}" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Alt Açıklama</label>
-                <input type="text" class="form-input vid-subtitle" value="${escapeHtml(v.subtitle || '')}" />
-              </div>
+            <div class="form-group">
+              <label class="form-label">Video Başlığı</label>
+              <input type="text" class="form-input vid-title" value="${escapeHtml(v.title)}" />
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">YouTube Embed veya Watch Linki</label>
+              <label class="form-label">YouTube Linki veya Embed URL</label>
               <input type="text" class="form-input vid-url" value="${escapeHtml(v.embedUrl)}" />
             </div>
           </div>
@@ -717,65 +744,66 @@
     `;
   }
 
-  function renderLinksGenerator(profile) {
-    const baseUrl = window.location.origin + window.location.pathname.replace(/admin\.(html|php).*$/, '') + profile.htmlSlug;
-    const prodUrl = `https://icimizdekitamirci.com/${profile.phpSlug}`;
-
-    const channels = [
-      { key: 'instagram', name: 'Instagram Bio Linki', desc: 'Instagram profil biyografisine eklenecek takip linki' },
-      { key: 'whatsapp', name: 'WhatsApp Paylaşım Linki', desc: 'WhatsApp durum, grup veya mesajlarında paylaşılacak link' },
-      { key: 'youtube', name: 'YouTube Açıklama Linki', desc: 'Farkındalık Sohbetleri video açıklamaları için link' },
-      { key: 'twitter', name: 'X (Twitter) Linki', desc: 'X profili ve gönderileri için takip linki' }
-    ];
+  // =========================================================================
+  // 7. GİRİŞ BİLGİLERİNİ DEĞİŞTİR (PANEL DEĞİŞTİRME ÖZELLİĞİ)
+  // =========================================================================
+  function renderSecurityEditor() {
+    const auth = window.ITStore.getAuth();
 
     return `
-      <div class="admin-card">
+      <div class="admin-card" style="max-width:680px;">
         <div class="admin-card-header">
           <div>
-            <h2 class="admin-card-title">
-              🚀 ${escapeHtml(profile.name)} (<code>${escapeHtml(profile.phpSlug)}</code>) — Kaynak Takip Linkleri (Instagram / WhatsApp Analitiği İçin)
-            </h2>
+            <h2 class="admin-card-title">🔐 Panel Giriş Bilgilerini Değiştir</h2>
             <p class="admin-card-subtitle">
-              Ziyaretçinin Instagram'dan mı yoksa WhatsApp'tan mı geldiğini %100 doğrulukla yakalamak için bu hazır linkleri kullanabilirsiniz. (Ayrıca sistem <code>document.referrer</code> ve <code>fbclid</code> üzerinden otomatik tespit de yapar.)
+              Admin paneline giriş için kullanılan kullanıcı adı ve şifreyi buradan güncelleyebilirsiniz.
             </p>
           </div>
         </div>
 
-        <div class="training-stat-list">
-          ${channels
-            .map((ch) => {
-              const liveTestLink = `${baseUrl}?ref=${ch.key}`;
-              const realDomainLink = `${prodUrl}?ref=${ch.key}`;
-              return `
-              <div class="training-stat-item">
-                <div class="training-stat-top">
-                  <div>
-                    <div class="training-stat-name">${escapeHtml(ch.name)}</div>
-                    <div style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(ch.desc)}</div>
-                  </div>
-                  <div style="display:flex; gap:0.5rem;">
-                    <button type="button" class="btn-secondary" data-copy-text="${escapeHtml(liveTestLink)}">
-                      📋 Test Linkini Kopyala
-                    </button>
-                    <a href="${escapeHtml(liveTestLink)}" target="_blank" class="btn-primary">
-                      ↗ Bu Kaynakla Sayfayı Aç
-                    </a>
-                  </div>
-                </div>
-                <div style="font-family:var(--font-mono); font-size:0.78rem; padding:0.55rem 0.8rem; background:var(--surface); border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); overflow-x:auto;">
-                  Canlı Demo: ${escapeHtml(liveTestLink)}<br/>
-                  Alan Adı: ${escapeHtml(realDomainLink)}
-                </div>
-              </div>
-            `;
-            })
-            .join('')}
-        </div>
+        <form id="auth-change-form" style="display:flex; flex-direction:column; gap:1.15rem;">
+          <div id="auth-change-msg" class="login-error-box"></div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Mevcut Kullanıcı Adı</label>
+            <input type="text" class="form-input" value="${escapeHtml(auth.username)}" disabled style="background:#f1f5f9; cursor:not-allowed;" />
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="new-auth-username">Yeni Kullanıcı Adı</label>
+            <input type="text" class="form-input" id="new-auth-username" value="${escapeHtml(auth.username)}" required />
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="current-auth-pass">Mevcut Şifre</label>
+            <input type="password" class="form-input" id="current-auth-pass" placeholder="Doğrulama için mevcut şifrenizi girin" required />
+          </div>
+
+          <div class="form-grid-2" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="new-auth-pass">Yeni Şifre</label>
+              <input type="password" class="form-input" id="new-auth-pass" placeholder="Yeni şifrenizi belirleyin" required />
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="new-auth-pass-confirm">Yeni Şifre (Tekrar)</label>
+              <input type="password" class="form-input" id="new-auth-pass-confirm" placeholder="Yeni şifreyi tekrar yazın" required />
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
+            <button type="submit" class="btn-primary" style="padding:0.75rem 1.5rem;">
+              💾 Giriş Bilgilerini Güncelle
+            </button>
+          </div>
+        </form>
       </div>
     `;
   }
 
-  function renderAdmin() {
+  // =========================================================================
+  // 8. ANA DASHBOARD SHELL RENDER
+  // =========================================================================
+  function renderDashboard() {
     const profile = window.ITStore.getProfile(selectedProfileId);
     const root = document.getElementById('admin-root');
     if (!root) return;
@@ -789,8 +817,8 @@
       sectionHtml = renderProfileEditor(profile);
     } else if (activeSection === 'media') {
       sectionHtml = renderMediaEditor(profile);
-    } else if (activeSection === 'links') {
-      sectionHtml = renderLinksGenerator(profile);
+    } else if (activeSection === 'security') {
+      sectionHtml = renderSecurityEditor();
     }
 
     root.innerHTML = `
@@ -802,55 +830,55 @@
               <div class="admin-brand-mark">İT</div>
               <div class="admin-brand-text">
                 <h1>İçimizdeki Tamirci</h1>
-                <span>CMS & Analitik Paneli</span>
+                <span>Yönetim & Analitik Paneli</span>
               </div>
             </div>
 
-            <div class="admin-nav-group-label">Raporlama & Analiz</div>
+            <div class="admin-nav-group-label">Raporlama</div>
             <nav class="admin-nav">
               <button type="button" class="admin-nav-btn ${activeSection === 'analytics' ? 'active' : ''}" data-nav="analytics">
                 <span>📊 Analiz & İstatistikler</span>
                 <span class="admin-nav-badge">Canlı</span>
               </button>
-              <button type="button" class="admin-nav-btn ${activeSection === 'links' ? 'active' : ''}" data-nav="links">
-                <span>🚀 IG / WP Takip Linkleri</span>
-              </button>
             </nav>
 
-            <div class="admin-nav-group-label">Sayfa İçerik Yönetimi (${escapeHtml(profile.phpSlug)})</div>
+            <div class="admin-nav-group-label">Sayfa Yönetimi (${escapeHtml(profile.phpSlug)})</div>
             <nav class="admin-nav">
               <button type="button" class="admin-nav-btn ${activeSection === 'trainings' ? 'active' : ''}" data-nav="trainings">
-                <span>🎓 Seminer & Eğitimler</span>
+                <span>🎓 Seminerler & Butonlar</span>
                 <span class="admin-nav-badge">${(profile.trainings || []).length}</span>
               </button>
               <button type="button" class="admin-nav-btn ${activeSection === 'profile' ? 'active' : ''}" data-nav="profile">
                 <span>👤 Profil & Biyografi</span>
               </button>
               <button type="button" class="admin-nav-btn ${activeSection === 'media' ? 'active' : ''}" data-nav="media">
-                <span>🔗 Sosyal Medya & Video</span>
+                <span>🔗 Sosyal Medya & Videolar</span>
+              </button>
+            </nav>
+
+            <div class="admin-nav-group-label">Panel Ayarları</div>
+            <nav class="admin-nav">
+              <button type="button" class="admin-nav-btn ${activeSection === 'security' ? 'active' : ''}" data-nav="security">
+                <span>🔐 Şifre Değiştir (Giriş)</span>
               </button>
             </nav>
           </div>
 
           <div class="admin-sidebar-footer">
-            <div style="font-size:0.72rem; color:#8FA6AA; padding:0 0.25rem;">Canlı Sayfaları Görüntüle:</div>
-            <a href="rabia-alga.html" target="_blank" class="admin-live-link">
-              <span>🟢 rabia-alga.php</span>
+            <div style="font-size:0.72rem; color:#8FA6AA; padding:0 0.25rem;">Sayfayı Aç:</div>
+            <a href="${escapeHtml(profile.htmlSlug)}" target="_blank" class="admin-live-link">
+              <span>🟢 ${escapeHtml(profile.phpSlug)}</span>
               <span>↗</span>
             </a>
-            <a href="bedia-kahya-kilic.html" target="_blank" class="admin-live-link">
-              <span>🟢 bedia-kahya-kilic.php</span>
-              <span>↗</span>
-            </a>
-            <button type="button" id="btn-reset-defaults" style="margin-top:0.4rem; font-size:0.74rem; color:#FCA5A5; text-align:left; padding:0.4rem 0.5rem;">
-              ↺ Varsayılan Verilere Sıfırla
+            <button type="button" id="btn-logout" class="admin-logout-btn">
+              🚪 Çıkış Yap
             </button>
           </div>
         </aside>
 
-        <!-- SAĞ ANA ALAN -->
+        <!-- SAĞ İÇERİK -->
         <div class="admin-main">
-          <!-- Üst Çubuk: Hangi Sayfa Düzenleniyor Seçicisi -->
+          <!-- Üst Bar: rabia-alga.php vs bedia-kahya-kilic.php Seçimi -->
           <header class="admin-header">
             <div class="admin-file-selector-wrap">
               <span class="admin-selector-label">Düzenlenen Sayfa:</span>
@@ -878,12 +906,11 @@
 
             <div class="admin-header-actions">
               <a href="${escapeHtml(profile.htmlSlug)}" target="_blank" class="btn-secondary">
-                👁️ ${escapeHtml(profile.phpSlug)} Sayfasını Aç ↗
+                👁️ ${escapeHtml(profile.phpSlug)} Önizle ↗
               </a>
             </div>
           </header>
 
-          <!-- İçerik Gövdesi -->
           <main class="admin-content">
             ${sectionHtml}
           </main>
@@ -891,7 +918,7 @@
       </div>
     `;
 
-    bindAdminEvents(profile);
+    bindDashboardEvents(profile);
   }
 
   function collectTrainingsFromDOM(profile) {
@@ -901,14 +928,11 @@
       const existing = (profile.trainings || [])[idx] || {};
       updated.push({
         id: existing.id || `trn-${profile.id}-${Date.now()}-${idx}`,
-        title: card.querySelector('.trn-title')?.value.trim() || 'Yeni Seminer',
-        category: card.querySelector('.trn-category')?.value.trim() || 'Seminer',
+        title: card.querySelector('.trn-title')?.value.trim() || 'Yeni Seminer - KATIL',
+        pillText: card.querySelector('.trn-pill')?.value.trim() || 'Kayıt Ol',
         date: card.querySelector('.trn-date')?.value.trim() || '',
-        time: card.querySelector('.trn-time')?.value.trim() || '',
-        location: card.querySelector('.trn-location')?.value.trim() || '',
+        location: '',
         mode: card.querySelector('.trn-mode')?.value || 'Yüz Yüze',
-        status: card.querySelector('.trn-status')?.value.trim() || 'Kayıtlarımız devam etmektedir',
-        ctaLabel: card.querySelector('.trn-cta')?.value.trim() || 'Seminere Katıl & İncele',
         url: card.querySelector('.trn-url')?.value.trim() || '#',
         active: card.querySelector('.trn-active')?.checked ?? true
       });
@@ -916,36 +940,42 @@
     return updated;
   }
 
-  function bindAdminEvents(profile) {
-    // Sol menü geçişi
+  function bindDashboardEvents(profile) {
+    // Çıkış Yap
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        window.ITStore.logoutAdmin();
+        renderApp();
+      });
+    }
+
+    // Menü Sekmesi Değişimi
     document.querySelectorAll('[data-nav]').forEach((btn) => {
       btn.addEventListener('click', () => {
         activeSection = btn.getAttribute('data-nav');
-        renderAdmin();
+        renderDashboard();
       });
     });
 
-    // Üst bar: rabia-alga.php vs bedia-kahya-kilic.php seçimi
+    // Sayfa Seçici (rabia-alga.php vs bedia-kahya-kilic.php)
     document.querySelectorAll('[data-select-profile]').forEach((btn) => {
       btn.addEventListener('click', () => {
         selectedProfileId = btn.getAttribute('data-select-profile');
         if (analyticsFilterProfile !== 'ALL') {
           analyticsFilterProfile = selectedProfileId;
         }
-        renderAdmin();
-        const selectedProf = window.ITStore.getProfile(selectedProfileId);
-        showToast(`${selectedProf.phpSlug} (${selectedProf.name}) seçildi.`);
+        renderDashboard();
+        const p = window.ITStore.getProfile(selectedProfileId);
+        showToast(`${p.phpSlug} (${p.name}) seçildi.`);
       });
     });
 
-    // Analitik filtre butonları
+    // Analitik Filtre Butonları
     document.querySelectorAll('[data-analytics-filter]').forEach((btn) => {
       btn.addEventListener('click', () => {
         analyticsFilterProfile = btn.getAttribute('data-analytics-filter');
-        if (analyticsFilterProfile !== 'ALL') {
-          selectedProfileId = analyticsFilterProfile;
-        }
-        renderAdmin();
+        renderDashboard();
       });
     });
 
@@ -966,18 +996,19 @@
           if (trn) window.ITStore.recordTrainingClick('bedia-kahya-kilic', trn, 'whatsapp', 'mobile');
           showToast('WhatsApp -> bedia-kahya-kilic.php ziyareti ve eğitim tıklaması eklendi!');
         }
-        renderAdmin();
+        renderDashboard();
       });
     });
 
-    // Seminer Kaydetme
+    // Seminerleri Kaydetme
     const btnSaveTrainings = document.getElementById('btn-save-trainings');
     if (btnSaveTrainings) {
       btnSaveTrainings.addEventListener('click', () => {
+        profile.scheduleNote = document.getElementById('trn-schedule-note')?.value.trim() || profile.scheduleNote;
         profile.trainings = collectTrainingsFromDOM(profile);
         window.ITStore.updateProfile(selectedProfileId, profile);
-        renderAdmin();
-        showToast(`${profile.phpSlug} seminer takvimi güncellendi ve yayına alındı!`);
+        renderDashboard();
+        showToast(`${profile.phpSlug} seminer bilgileri güncellendi!`);
       });
     }
 
@@ -985,23 +1016,20 @@
     const btnAddTraining = document.getElementById('btn-add-training');
     if (btnAddTraining) {
       btnAddTraining.addEventListener('click', () => {
+        profile.scheduleNote = document.getElementById('trn-schedule-note')?.value.trim() || profile.scheduleNote;
         profile.trainings = collectTrainingsFromDOM(profile);
         profile.trainings.push({
           id: 'trn-' + Date.now(),
-          title: 'Yeni Seminer / Eğitim Programı',
-          category: 'ThetaHealing®',
+          title: 'Yeni Seminer Programı - KATIL',
+          pillText: 'İstanbul - 15-16 Mayıs',
           date: '15-16 Mayıs 2027',
-          time: '09.30 - 17.30',
-          location: 'İstanbul / Online',
           mode: 'Yüz Yüze',
-          status: 'Kayıtlarımız devam etmektedir',
-          ctaLabel: 'Seminere Katıl & İncele',
           url: 'https://www.rabiaalga.com/',
           active: true
         });
         window.ITStore.updateProfile(selectedProfileId, profile);
-        renderAdmin();
-        showToast('Yeni seminer eklendi! Bilgileri düzenleyip kaydedebilirsiniz.');
+        renderDashboard();
+        showToast('Yeni seminer butonu eklendi!');
       });
     }
 
@@ -1009,42 +1037,35 @@
     document.querySelectorAll('[data-delete-training]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.getAttribute('data-delete-training'), 10);
+        profile.scheduleNote = document.getElementById('trn-schedule-note')?.value.trim() || profile.scheduleNote;
         profile.trainings = collectTrainingsFromDOM(profile);
         profile.trainings.splice(idx, 1);
         window.ITStore.updateProfile(selectedProfileId, profile);
-        renderAdmin();
-        showToast('Seminer silindi ve sayfa güncellendi.');
+        renderDashboard();
+        showToast('Seminer silindi.');
       });
     });
 
     // Profil Bilgilerini Kaydetme
     const btnSaveProfile = document.getElementById('btn-save-profile');
-    const colorPicker = document.getElementById('prof-color-picker');
-    const colorInput = document.getElementById('prof-accent');
-    if (colorPicker && colorInput) {
-      colorPicker.addEventListener('input', () => {
-        colorInput.value = colorPicker.value;
-      });
-    }
     if (btnSaveProfile) {
       btnSaveProfile.addEventListener('click', () => {
         profile.name = document.getElementById('prof-name')?.value.trim() || profile.name;
         profile.role = document.getElementById('prof-role')?.value.trim() || profile.role;
-        profile.credentials = document.getElementById('prof-credentials')?.value.trim() || '';
         profile.avatar = document.getElementById('prof-avatar')?.value.trim() || profile.avatar;
-        profile.greeting = document.getElementById('prof-greeting')?.value.trim() || '';
-        profile.accentColor = document.getElementById('prof-accent')?.value.trim() || '#0B6E78';
-        profile.bio = document.getElementById('prof-bio')?.value.trim() || '';
-        profile.moreLabel = document.getElementById('prof-more-label')?.value.trim() || 'Hakkımda Daha Fazlası';
-        profile.moreUrl = document.getElementById('prof-more-url')?.value.trim() || '';
+        profile.bgImage = document.getElementById('prof-bg')?.value.trim() || profile.bgImage;
+        profile.greeting = document.getElementById('prof-greeting')?.value.trim() || profile.greeting;
+        profile.bio = document.getElementById('prof-bio')?.value.trim() || profile.bio;
+        profile.moreLabel = document.getElementById('prof-more-label')?.value.trim() || 'Daha Fazlası İçin...';
+        profile.moreUrl = document.getElementById('prof-more-url')?.value.trim() || profile.moreUrl;
 
         window.ITStore.updateProfile(selectedProfileId, profile);
-        renderAdmin();
+        renderDashboard();
         showToast(`${profile.phpSlug} profil bilgileri güncellendi!`);
       });
     }
 
-    // Sosyal Medya & Videoları Kaydetme
+    // Sosyal Medya ve Videoları Kaydetme
     const btnSaveMedia = document.getElementById('btn-save-media');
     if (btnSaveMedia) {
       btnSaveMedia.addEventListener('click', () => {
@@ -1062,7 +1083,6 @@
           updatedVideos.push({
             id: existing.id || `vid-${Date.now()}-${idx}`,
             title: card.querySelector('.vid-title')?.value.trim() || 'Video Başlığı',
-            subtitle: card.querySelector('.vid-subtitle')?.value.trim() || '',
             embedUrl: normalizeYoutubeEmbed(card.querySelector('.vid-url')?.value),
             active: true
           });
@@ -1070,8 +1090,8 @@
         profile.videos = updatedVideos;
 
         window.ITStore.updateProfile(selectedProfileId, profile);
-        renderAdmin();
-        showToast(`${profile.phpSlug} sosyal medya ve video ayarları kaydedildi!`);
+        renderDashboard();
+        showToast(`${profile.phpSlug} bağlantıları ve videoları kaydedildi!`);
       });
     }
 
@@ -1082,13 +1102,12 @@
         profile.videos = profile.videos || [];
         profile.videos.push({
           id: 'vid-' + Date.now(),
-          title: 'Yeni Farkındalık Sohbeti Videosu',
-          subtitle: 'Video açıklaması',
+          title: 'Yeni YouTube Videosu',
           embedUrl: 'https://www.youtube.com/embed/BgTwMiPETuY',
           active: true
         });
         window.ITStore.updateProfile(selectedProfileId, profile);
-        renderAdmin();
+        renderDashboard();
         showToast('Yeni video alanı eklendi.');
       });
     }
@@ -1099,37 +1118,69 @@
         const idx = parseInt(btn.getAttribute('data-delete-video'), 10);
         profile.videos.splice(idx, 1);
         window.ITStore.updateProfile(selectedProfileId, profile);
-        renderAdmin();
-        showToast('Video kaldırıldı.');
+        renderDashboard();
+        showToast('Video silindi.');
       });
     });
 
-    // Link Kopyalama
-    document.querySelectorAll('[data-copy-text]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const text = btn.getAttribute('data-copy-text');
-        navigator.clipboard?.writeText(text).catch(() => {});
-        showToast('Takip linki panoya kopyalandı!');
-      });
-    });
+    // Panel Şifresi / Kullanıcı Adı Değiştirme Formu (Panel Değiştirme Özelliği)
+    const authForm = document.getElementById('auth-change-form');
+    if (authForm) {
+      authForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const currentAuth = window.ITStore.getAuth();
+        const newU = document.getElementById('new-auth-username').value.trim();
+        const curP = document.getElementById('current-auth-pass').value.trim();
+        const newP = document.getElementById('new-auth-pass').value.trim();
+        const newPConf = document.getElementById('new-auth-pass-confirm').value.trim();
+        const msgBox = document.getElementById('auth-change-msg');
 
-    // Varsayılanlara Sıfırla
-    const btnReset = document.getElementById('btn-reset-defaults');
-    if (btnReset) {
-      btnReset.addEventListener('click', () => {
-        window.ITStore.resetToDefaults();
-        renderAdmin();
-        showToast('Tüm profil verileri ilk haline sıfırlandı.');
+        if (curP !== String(currentAuth.password)) {
+          msgBox.textContent = 'Mevcut şifreniz hatalı!';
+          msgBox.classList.add('show');
+          return;
+        }
+
+        if (!newU) {
+          msgBox.textContent = 'Kullanıcı adı boş bırakılamaz!';
+          msgBox.classList.add('show');
+          return;
+        }
+
+        if (!newP) {
+          msgBox.textContent = 'Yeni şifre boş bırakılamaz!';
+          msgBox.classList.add('show');
+          return;
+        }
+
+        if (newP !== newPConf) {
+          msgBox.textContent = 'Yeni şifre ve tekrarı uyuşmuyor!';
+          msgBox.classList.add('show');
+          return;
+        }
+
+        window.ITStore.saveAuth({ username: newU, password: newP });
+        showToast('Panel giriş bilgileriniz (kullanıcı adı ve şifre) başarıyla güncellendi!');
+        renderDashboard();
       });
     }
   }
 
-  renderAdmin();
+  function renderApp() {
+    if (!window.ITStore.isAdminLoggedIn()) {
+      renderLoginScreen();
+    } else {
+      renderDashboard();
+    }
+  }
 
-  // Canlı senkronizasyon: açık olan profil sayfasından bir eğitime tıklandığında admin ekranındaki sayılar anında artar!
+  // İlk Başlatma
+  renderApp();
+
+  // Senkronizasyon dinleyicisi
   window.ITStore.onSync(() => {
-    if (activeSection === 'analytics') {
-      renderAdmin();
+    if (window.ITStore.isAdminLoggedIn() && activeSection === 'analytics') {
+      renderDashboard();
     }
   });
 })();
