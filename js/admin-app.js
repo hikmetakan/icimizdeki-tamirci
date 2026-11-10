@@ -171,7 +171,7 @@
                 type="text"
                 id="login-username"
                 class="form-input"
-                placeholder="Varsayılan: 1"
+                placeholder="Kullanıcı Adı"
                 required
                 autocomplete="username"
                 autofocus
@@ -184,7 +184,7 @@
                 type="password"
                 id="login-password"
                 class="form-input"
-                placeholder="Varsayılan: 1"
+                placeholder="Şifre"
                 required
                 autocomplete="current-password"
               />
@@ -194,10 +194,6 @@
               Panele Giriş Yap
             </button>
           </form>
-
-          <div class="login-credentials-tip">
-            <strong>Varsayılan Bilgiler:</strong> Kullanıcı Adı: <code>1</code> &bull; Şifre: <code>1</code>
-          </div>
         </div>
       </div>
     `;

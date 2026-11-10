@@ -51,8 +51,8 @@ const server = http.createServer((req, res) => {
     pathname = '/rabia-alga.html';
   } else if (pathname === '/bedia-kahya-kilic.php' || pathname === '/bedia-kahya-kilic') {
     pathname = '/bedia-kahya-kilic.html';
-  } else if (pathname === '/admin.php' || pathname === '/admin') {
-    pathname = '/admin.html';
+  } else if (pathname === '/admin.php' || pathname === '/admin' || pathname === '/yonetici' || pathname === '/yonetici.php') {
+    pathname = '/yonetici.html';
   }
 
   const filePath = path.join(ROOT, pathname);
