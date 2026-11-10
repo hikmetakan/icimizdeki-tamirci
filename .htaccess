@@ -3,33 +3,30 @@ DirectoryIndex index.php index.html
 
 <IfModule mod_rewrite.c>
 RewriteEngine On
-RewriteBase /icimizdekitamirci/
 
 # Prevent redirect loop
 RewriteCond %{ENV:REDIRECT_STATUS} 200
 RewriteRule ^ - [L]
 
 # 1. Directly requested .php to clean URL (exclude api.php)
-RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/icimizdekitamirci/([^/\s.]+)\.php [NC]
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/[^\s]*?([^/\s.]+)\.php [NC]
 RewriteCond %1 !^api$ [NC]
-RewriteRule ^ %1 [R=301,L]
+RewriteRule ^([^\s.]+)\.php$ $1 [R=301,L]
 
 # 2. Directly requested .html to clean URL
-RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/icimizdekitamirci/([^/\s.]+)\.html [NC]
-RewriteRule ^ %1 [R=301,L]
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/[^\s]*?([^/\s.]+)\.html [NC]
+RewriteRule ^([^\s.]+)\.html$ $1 [R=301,L]
 
 # 3. Clean URL rewrite to specific .php file if it exists (e.g. admin, rabia-alga, bedia-kahya-kilic)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_FILENAME}.php -f [OR]
-RewriteCond %{DOCUMENT_ROOT}/icimizdekitamirci/$1.php -f
+RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^([^/]+)/?$ $1.php [L,QSA]
 
 # 4. Clean URL rewrite to specific .html file if it exists
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_FILENAME}.html -f [OR]
-RewriteCond %{DOCUMENT_ROOT}/icimizdekitamirci/$1.html -f
+RewriteCond %{REQUEST_FILENAME}.html -f
 RewriteRule ^([^/]+)/?$ $1.html [L,QSA]
 
 # 5. Dynamic Profile Router for any newly created trainer pages
