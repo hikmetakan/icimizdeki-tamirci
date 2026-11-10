@@ -8,6 +8,9 @@ RewriteEngine On
 RewriteCond %{ENV:REDIRECT_STATUS} 200
 RewriteRule ^ - [L]
 
+# admin adreslerini tamamen gizle ve 404 döndür (kimse yonetici adresini bilmesin)
+RewriteRule ^admin(?:\.php|\.html)?/?$ - [R=404,L,NC]
+
 # 1. Directly requested .php to clean URL (exclude api.php)
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/[^\s]*?([^/\s.]+)\.php [NC]
 RewriteCond %1 !^api$ [NC]

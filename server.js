@@ -51,7 +51,11 @@ const server = http.createServer((req, res) => {
     pathname = '/rabia-alga.html';
   } else if (pathname === '/bedia-kahya-kilic.php' || pathname === '/bedia-kahya-kilic') {
     pathname = '/bedia-kahya-kilic.html';
-  } else if (pathname === '/admin.php' || pathname === '/admin' || pathname === '/yonetici' || pathname === '/yonetici.php') {
+  } else if (pathname === '/admin.php' || pathname === '/admin') {
+    res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end('<!DOCTYPE HTML><html><head><title>404 Not Found</title></head><body><h1>Not Found</h1><p>The requested URL was not found on this server.</p></body></html>');
+    return;
+  } else if (pathname === '/yonetici' || pathname === '/yonetici.php') {
     pathname = '/yonetici.html';
   }
 

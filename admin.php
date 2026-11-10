@@ -1,9 +1,13 @@
 <?php
 /**
- * İçimizdeki Tamirci — Admin Yönlendirmesi
- * Eski /admin linklerini otomatik olarak /yonetici adresine yönlendirir.
+ * 404 Not Found — admin sayfası kaldırıldı.
  */
-header('X-LiteSpeed-Cache-Control: no-cache, no-store');
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-header('Location: yonetici', true, 301);
-exit;
+http_response_code(404);
+?>
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>404 Not Found</title>
+</head><body>
+<h1>Not Found</h1>
+<p>The requested URL was not found on this server.</p>
+</body></html>
